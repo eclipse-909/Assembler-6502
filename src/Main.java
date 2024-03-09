@@ -1,132 +1,267 @@
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellEditor;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.AbstractTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyAdapter;
-import javax.swing.text.JTextComponent;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
-public class Main {
-    private JFrame frame;
-    private JTable codeTable;
-    private JTextArea machineCodeTextArea;
-    private JButton createButton;
-    private JButton openButton;
-    private JButton saveButton;
-    private JButton saveAsButton;
-    private JButton assembleButton;
-
-    private boolean editingMode = false;
+public class Main extends JFrame {
+    private JTextArea editorTextArea;
+    private JTextArea hexDumpTextArea;
 
     public Main() {
-        frame = new JFrame("Assembly Text Editor");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);
+        setTitle("6502 Assembly Editor and Assembler");
+        setSize(800, 600);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
 
-        // Create top navigation bar with buttons
-        JPanel topPanel = new JPanel();
-        createButton = new JButton("Create");
-        openButton = new JButton("Open");
-        saveButton = new JButton("Save");
-        saveAsButton = new JButton("Save As");
-        assembleButton = new JButton("Assemble");
-        createButton.addActionListener(new ActionListener() {
+        createMenuBar();
+        createEditorPanel();
+        createHexDumpPanel();
+
+        setVisible(true);
+    }
+
+    private void createMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
+        JMenu fileMenu = new JMenu("File");
+        JMenuItem newMenuItem = new JMenuItem("New");
+        JMenuItem openMenuItem = new JMenuItem("Open");
+        JMenuItem saveMenuItem = new JMenuItem("Save");
+        JMenuItem saveAsMenuItem = new JMenuItem("Save As");
+        JMenuItem assembleMenuItem = new JMenuItem("Assemble");
+
+        newMenuItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                setEditingMode(true);
+                editorTextArea.setText("");
+                hexDumpTextArea.setText("");
             }
         });
-        topPanel.add(createButton);
-        topPanel.add(openButton);
-        topPanel.add(saveButton);
-        topPanel.add(saveAsButton);
-        topPanel.add(assembleButton);
-        frame.add(topPanel, BorderLayout.NORTH);
 
-        // Create table for displaying assembly code with line numbers, addresses, labels, code, and machine code
-        DefaultTableModel model = new DefaultTableModel(new String[]{"Line", "Address", "Label", "Code", "Machine Code"}, 0) {
+        openMenuItem.addActionListener(new ActionListener() {
             @Override
-            public boolean isCellEditable(int row, int column) {
-                // Allow editing for Label and Code columns only when in editing mode
-                return editingMode && (column == 2 || column == 3);
-            }
-        };
-        codeTable = new JTable(model) {
-            @Override
-            public TableCellEditor getCellEditor(int row, int column) {
-                if (column == 3) { // Code column
-                    return new CodeCellEditor();
-                }
-                return super.getCellEditor(row, column);
-            }
-        };
-        codeTable.getColumnModel().getColumn(0).setPreferredWidth(50); // Line number
-        codeTable.getColumnModel().getColumn(1).setPreferredWidth(100); // Address
-        codeTable.getColumnModel().getColumn(2).setPreferredWidth(100); // Label
-        codeTable.getColumnModel().getColumn(3).setPreferredWidth(200); // Code
-        codeTable.getColumnModel().getColumn(4).setPreferredWidth(200); // Machine code
-        JScrollPane tableScrollPane = new JScrollPane(codeTable);
-        frame.add(tableScrollPane, BorderLayout.CENTER);
-
-        // Create bottom text area for displaying machine code after assembly
-        machineCodeTextArea = new JTextArea();
-        machineCodeTextArea.setEditable(false);
-        JScrollPane machineCodeScrollPane = new JScrollPane(machineCodeTextArea);
-        frame.add(machineCodeScrollPane, BorderLayout.SOUTH);
-
-        setEditingMode(false); // Set initial editing mode
-
-        frame.setVisible(true);
-    }
-
-    private void setEditingMode(boolean editing) {
-        editingMode = editing;
-        saveButton.setEnabled(editing);
-        saveAsButton.setEnabled(editing);
-        assembleButton.setEnabled(editing);
-        codeTable.setEnabled(editing);
-        if (editing) {
-            // Add one or two rows when entering editing mode
-            DefaultTableModel model = (DefaultTableModel) codeTable.getModel();
-            model.setRowCount(2); // Set initial row count
-        } else {
-            // Remove all rows when not editing
-            ((DefaultTableModel) codeTable.getModel()).setRowCount(0);
-        }
-        codeTable.getTableHeader().setVisible(editing); // Show/hide table headers
-    }
-
-    private class CodeCellEditor extends DefaultCellEditor {
-        public CodeCellEditor() {
-            super(new JTextField());
-            JTextComponent component = (JTextComponent) getComponent();
-            component.addKeyListener(new KeyAdapter() {
-                @Override
-                public void keyPressed(KeyEvent e) {
-                    int row = codeTable.getSelectedRow();
-                    int column = codeTable.getSelectedColumn();
-                    DefaultTableModel model = (DefaultTableModel) codeTable.getModel();
-
-                    if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                        model.insertRow(row + 1, new Object[]{"", "", "", "", ""});
-                        codeTable.changeSelection(row + 1, column, false, false);
-                        e.consume();
-                    } else if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE && row > 0 && codeTable.getValueAt(row, column).toString().isEmpty()) {
-                        model.removeRow(row);
-                        codeTable.changeSelection(row - 1, column, false, false);
-                        e.consume();
-                    } else if (e.getKeyCode() == KeyEvent.VK_DELETE && row < model.getRowCount() - 1 && codeTable.getValueAt(row, column).toString().isEmpty()) {
-                        model.removeRow(row);
-                        e.consume();
+            public void actionPerformed(ActionEvent e) {
+                JFileChooser fileChooser = new JFileChooser();
+                FileNameExtensionFilter filter = new FileNameExtensionFilter("Assembly Files", "asm");
+                fileChooser.setFileFilter(filter);
+                int returnValue = fileChooser.showOpenDialog(null);
+                if (returnValue == JFileChooser.APPROVE_OPTION) {
+                    File selectedFile = fileChooser.getSelectedFile();
+                    try {
+                        BufferedReader reader = new BufferedReader(new FileReader(selectedFile));
+                        StringBuilder stringBuilder = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            stringBuilder.append(line).append("\n");
+                        }
+                        reader.close();
+                        editorTextArea.setText(stringBuilder.toString());
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
                     }
                 }
-            });
+            }
+        });
+
+        saveMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JFileChooser fileChooser = new JFileChooser();
+                int returnValue = fileChooser.showSaveDialog(null);
+                if (returnValue == JFileChooser.APPROVE_OPTION) {
+                    File selectedFile = fileChooser.getSelectedFile();
+                    try {
+                        FileWriter writer = new FileWriter(selectedFile);
+                        writer.write(editorTextArea.getText());
+                        writer.close();
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        saveAsMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JFileChooser fileChooser = new JFileChooser();
+                int returnValue = fileChooser.showSaveDialog(null);
+                if (returnValue == JFileChooser.APPROVE_OPTION) {
+                    File selectedFile = fileChooser.getSelectedFile();
+                    try {
+                        FileWriter writer = new FileWriter(selectedFile);
+                        writer.write(editorTextArea.getText());
+                        writer.close();
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        assembleMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Implement assembling logic here
+            }
+        });
+
+        fileMenu.add(newMenuItem);
+        fileMenu.add(openMenuItem);
+        fileMenu.add(saveMenuItem);
+        fileMenu.add(saveAsMenuItem);
+        fileMenu.add(assembleMenuItem);
+        menuBar.add(fileMenu);
+        setJMenuBar(menuBar);
+    }
+
+    private void createEditorPanel() {
+        JPanel editorPanel = new JPanel(new BorderLayout());
+
+        // Custom table model for the editor table
+        EditorTableModel editorTableModel = new EditorTableModel();
+        JTable editorTable = new JTable(editorTableModel);
+
+        editorPanel.add(new JScrollPane(editorTable), BorderLayout.CENTER);
+
+        add(editorPanel, BorderLayout.CENTER);
+    }
+
+    private void createHexDumpPanel() {
+        JPanel hexDumpPanel = new JPanel(new BorderLayout());
+        hexDumpTextArea = new JTextArea();
+        hexDumpTextArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        hexDumpTextArea.setEditable(false);
+        hexDumpPanel.add(new JScrollPane(hexDumpTextArea), BorderLayout.CENTER);
+
+        add(hexDumpPanel, BorderLayout.EAST);
+    }
+
+    // Custom table model for the editor table
+    private class EditorTableModel extends AbstractTableModel {
+        private List<EditorRow> rows = new ArrayList<>();
+        private String orgAddress = "0000"; // Default org address
+
+        public EditorTableModel() {
+            // Add a default row
+            addRow(new EditorRow("", ""));
+        }
+
+        public void addRow(EditorRow row) {
+            rows.add(row);
+            fireTableRowsInserted(rows.size() - 1, rows.size() - 1);
+        }
+
+        @Override
+        public int getRowCount() {
+            return rows.size();
+        }
+
+        @Override
+        public int getColumnCount() {
+            return 5;
+        }
+
+        @Override
+        public String getColumnName(int column) {
+            switch (column) {
+                case 0:
+                    return "Line";
+                case 1:
+                    return "Address";
+                case 2:
+                    return "Label";
+                case 3:
+                    return "Assembly Code";
+                case 4:
+                    return "Hex Dump";
+                default:
+                    return "";
+            }
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            EditorRow row = rows.get(rowIndex);
+            switch (columnIndex) {
+                case 0:
+                    return rowIndex + 1; // Line number
+                case 1:
+                    return calculateAddress(rowIndex); // Memory address
+                case 2:
+                    return row.getLabel(); // Label
+                case 3:
+                    return row.getAssemblyCode(); // Assembly code
+                case 4:
+                    return ""; // Hex dump (to be calculated later)
+                default:
+                    return "";
+            }
+        }
+
+        @Override
+        public boolean isCellEditable(int rowIndex, int columnIndex) {
+            return columnIndex == 2 || columnIndex == 3; // Only allow editing labels and assembly code
+        }
+
+        @Override
+        public void setValueAt(Object value, int rowIndex, int columnIndex) {
+            EditorRow row = rows.get(rowIndex);
+            switch (columnIndex) {
+                case 2:
+                    row.setLabel((String) value);
+                    break;
+                case 3:
+                    row.setAssemblyCode((String) value);
+                    break;
+            }
+            fireTableCellUpdated(rowIndex, columnIndex);
+        }
+
+        private String calculateAddress(int rowIndex) {
+            // Calculate the address based on orgAddress and the size of previous instructions
+            // This is just a placeholder, you'll need to implement the actual logic
+            return String.format("%04X", Integer.parseInt(orgAddress, 16) + rowIndex * 2);
+        }
+    }
+
+    // Represents a row in the editor table
+    private static class EditorRow {
+        private String label;
+        private String assemblyCode;
+
+        public EditorRow(String label, String assemblyCode) {
+            this.label = label;
+            this.assemblyCode = assemblyCode;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+
+        public void setLabel(String label) {
+            this.label = label;
+        }
+
+        public String getAssemblyCode() {
+            return assemblyCode;
+        }
+
+        public void setAssemblyCode(String assemblyCode) {
+            this.assemblyCode = assemblyCode;
         }
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(Main::new);
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                new Main();
+            }
+        });
     }
 }
