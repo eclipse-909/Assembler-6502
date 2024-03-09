@@ -1,8 +1,12 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellEditor;
+import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyAdapter;
 
 public class Main {
     private JFrame frame;
@@ -64,6 +68,14 @@ public class Main {
         JScrollPane machineCodeScrollPane = new JScrollPane(machineCodeTextArea);
         frame.add(machineCodeScrollPane, BorderLayout.SOUTH);
 
+        // Add key bindings for text editor functionalities
+        codeTable.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
+
         setEditingMode(false); // Set initial editing mode
 
         frame.setVisible(true);
@@ -75,7 +87,6 @@ public class Main {
         saveAsButton.setEnabled(editing);
         assembleButton.setEnabled(editing);
         codeTable.setEnabled(editing);
-        codeTable.getTableHeader().setVisible(editing); // Show/hide table headers
         if (editing) {
             // Add one or two rows when entering editing mode
             DefaultTableModel model = (DefaultTableModel) codeTable.getModel();
@@ -83,6 +94,30 @@ public class Main {
         } else {
             // Remove all rows when not editing
             ((DefaultTableModel) codeTable.getModel()).setRowCount(0);
+        }
+        codeTable.getTableHeader().setVisible(editing); // Show/hide table headers
+    }
+
+    private void handleKeyPress(KeyEvent e) {
+        if (!editingMode) return;
+
+        int row = codeTable.getSelectedRow();
+        int column = codeTable.getSelectedColumn();
+        DefaultTableModel model = (DefaultTableModel) codeTable.getModel();
+
+        if (column == 3) { // Code column
+            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                model.insertRow(row + 1, new Object[]{"", "", "", "", ""});
+                codeTable.changeSelection(row + 1, column, false, false);
+                e.consume();
+            } else if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE && ((JTextComponent) ((DefaultCellEditor) codeTable.getCellEditor(row, column)).getComponent()).getText().isEmpty()) {
+                model.removeRow(row);
+                codeTable.changeSelection(row - 1, column, false, false);
+                e.consume();
+            } else if (e.getKeyCode() == KeyEvent.VK_DELETE && row < model.getRowCount() - 1 && ((JTextComponent) ((DefaultCellEditor) codeTable.getCellEditor(row, column)).getComponent()).getText().isEmpty()) {
+                model.removeRow(row);
+                e.consume();
+            }
         }
     }
 
