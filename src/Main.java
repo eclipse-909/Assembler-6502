@@ -1,12 +1,12 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
-import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyAdapter;
+import javax.swing.text.JTextComponent;
 
 public class Main {
     private JFrame frame;
@@ -53,7 +53,15 @@ public class Main {
                 return editingMode && (column == 2 || column == 3);
             }
         };
-        codeTable = new JTable(model);
+        codeTable = new JTable(model) {
+            @Override
+            public TableCellEditor getCellEditor(int row, int column) {
+                if (column == 3) { // Code column
+                    return new CodeCellEditor();
+                }
+                return super.getCellEditor(row, column);
+            }
+        };
         codeTable.getColumnModel().getColumn(0).setPreferredWidth(50); // Line number
         codeTable.getColumnModel().getColumn(1).setPreferredWidth(100); // Address
         codeTable.getColumnModel().getColumn(2).setPreferredWidth(100); // Label
@@ -67,14 +75,6 @@ public class Main {
         machineCodeTextArea.setEditable(false);
         JScrollPane machineCodeScrollPane = new JScrollPane(machineCodeTextArea);
         frame.add(machineCodeScrollPane, BorderLayout.SOUTH);
-
-        // Add key bindings for text editor functionalities
-        codeTable.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                handleKeyPress(e);
-            }
-        });
 
         setEditingMode(false); // Set initial editing mode
 
@@ -98,26 +98,31 @@ public class Main {
         codeTable.getTableHeader().setVisible(editing); // Show/hide table headers
     }
 
-    private void handleKeyPress(KeyEvent e) {
-        if (!editingMode) return;
+    private class CodeCellEditor extends DefaultCellEditor {
+        public CodeCellEditor() {
+            super(new JTextField());
+            JTextComponent component = (JTextComponent) getComponent();
+            component.addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent e) {
+                    int row = codeTable.getSelectedRow();
+                    int column = codeTable.getSelectedColumn();
+                    DefaultTableModel model = (DefaultTableModel) codeTable.getModel();
 
-        int row = codeTable.getSelectedRow();
-        int column = codeTable.getSelectedColumn();
-        DefaultTableModel model = (DefaultTableModel) codeTable.getModel();
-
-        if (column == 3) { // Code column
-            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                model.insertRow(row + 1, new Object[]{"", "", "", "", ""});
-                codeTable.changeSelection(row + 1, column, false, false);
-                e.consume();
-            } else if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE && ((JTextComponent) ((DefaultCellEditor) codeTable.getCellEditor(row, column)).getComponent()).getText().isEmpty()) {
-                model.removeRow(row);
-                codeTable.changeSelection(row - 1, column, false, false);
-                e.consume();
-            } else if (e.getKeyCode() == KeyEvent.VK_DELETE && row < model.getRowCount() - 1 && ((JTextComponent) ((DefaultCellEditor) codeTable.getCellEditor(row, column)).getComponent()).getText().isEmpty()) {
-                model.removeRow(row);
-                e.consume();
-            }
+                    if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                        model.insertRow(row + 1, new Object[]{"", "", "", "", ""});
+                        codeTable.changeSelection(row + 1, column, false, false);
+                        e.consume();
+                    } else if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE && row > 0 && codeTable.getValueAt(row, column).toString().isEmpty()) {
+                        model.removeRow(row);
+                        codeTable.changeSelection(row - 1, column, false, false);
+                        e.consume();
+                    } else if (e.getKeyCode() == KeyEvent.VK_DELETE && row < model.getRowCount() - 1 && codeTable.getValueAt(row, column).toString().isEmpty()) {
+                        model.removeRow(row);
+                        e.consume();
+                    }
+                }
+            });
         }
     }
 
