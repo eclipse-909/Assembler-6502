@@ -4,6 +4,7 @@
 - This is an editor and an assembler. It doesn't support most instructions in the 6502 ISA. The supported instructions are listed below.  
 - If you successfully assemble a program, it will provide the hex dump which you can use in an emulator or something.  
 - This editor doesn't provide any feedback or debugging except when you attempt to assemble.  
+- You can find the 6502 emulator that this is meant for here: https://tsiram.com/  
 
 Here are the supported instructions:  
 | Op Code | Mnemonic | Assembly | Hex |
