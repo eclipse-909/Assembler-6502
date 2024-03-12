@@ -1,4 +1,3 @@
-# WORK IN PROGRESS
 # Assembler-6502 Text Editor
 - This is a very rudimentary text editor for educational purposes which allows you to write 6502 assembly.  
 - This is an editor and an assembler. It doesn't support most instructions in the 6502 ISA. The supported instructions are listed below.  
@@ -29,6 +28,9 @@ Here are the supported instructions:
 | FF | SYS | SYS | FF |
 | FF | SYS | SYS $0010 | FF 10 00 |
 | __ | DAT | DAT $05 | 05 |
+
+# Download
+You can find the JAR file in this directory: https://github.com/eclipse-909/Assembler-6502/blob/master/out/artifacts/Assembler_6502_jar/Assembler-6502.jar
 
 # Syntax
 - Extra spacing is ignored
