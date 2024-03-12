@@ -71,7 +71,7 @@ high_byte: +$02  ;label points to 00
 second_byte: +$01 ;label points to 02
     DAT $010203
 
-    STA low_byte ;store 7 where the 8 was
+    STA low_byte ;store 01 where the 08 was
 
     .END
 ```
