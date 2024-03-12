@@ -48,10 +48,13 @@ For example, +$00 would do nothing, and +$01 would be the byte after, and so on.
 Here's example code:
 ```Assembly
     .ORG $0000
+    
     LDX #$03
-    SYS helloWorld
+    SYS helloWorld  ;print the \0-terminated string at helloWorld
     BRK
+    
 helloWorld:
     DAT $48656C6C6F20576F726C642100
+    
     .END
 ```
