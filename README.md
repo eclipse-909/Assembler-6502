@@ -28,3 +28,25 @@ Here are the supported instructions:
 | EE | INC | INC $0021 | EE 21 00 |
 | FF | SYS | SYS | FF |
 | FF | SYS | SYS $0010 | FF 10 00 |
+| __ | DAT | DAT $05 | 05 |
+
+# Syntax
+- Extra spacing is ignored
+- Anything after ";" is a comment
+- Not case-sensitive
+- Must start with .org $####
+- .end is optional, but anything after is ignored
+- Use DAT to declare variables
+- Labels must end in ":" and cannot contain spaces or start with a number
+- Hex is the only supported base
+
+Here's example code:
+```Assembly
+    .ORG $0000
+    LDX #$03
+    SYS helloWorld
+    BRK
+helloWorld:
+    DAT $48656C6C6F20576F726C642100
+    .END
+```

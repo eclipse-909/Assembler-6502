@@ -15,7 +15,6 @@ import java.util.Map;
 
 public class Main extends JFrame {
     private final JTextArea textArea, lineNumberArea, addressArea, hexDumpArea, outputArea;
-    private final JScrollPane lineNumberScrollPane, addressScrollPane, hexDumpScrollPane, outputScrollPane;
     private File currentFile;
 
     public Main() {
@@ -29,8 +28,7 @@ public class Main extends JFrame {
         JToolBar toolBar = new JToolBar();
         JButton newButton = new JButton("New");
         newButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
+            @Override public void actionPerformed(ActionEvent e) {
                 textArea.setText("");
                 addressArea.setText("");
                 hexDumpArea.setText("");
@@ -38,74 +36,93 @@ public class Main extends JFrame {
             }
         });
         toolBar.add(newButton);
-
         JButton openButton = new JButton("Open");
         openButton.addActionListener(e -> openFile());
         toolBar.add(openButton);
-
         JButton saveButton = new JButton("Save");
         saveButton.addActionListener(e -> saveFile(false));
         toolBar.add(saveButton);
-
         JButton saveAsButton = new JButton("Save As");
         saveAsButton.addActionListener(e -> saveFile(true));
         toolBar.add(saveAsButton);
-
         JButton assembleButton = new JButton("Assemble");
         assembleButton.addActionListener(e -> assembleCode());
         toolBar.add(assembleButton);
 
         contentPane.add(toolBar, BorderLayout.NORTH);
 
+        // Create the main text area
         textArea = new JTextArea();
-        textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        textArea.setTabSize(4);
+        textArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         textArea.getDocument().addDocumentListener(new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent e) {updateLineNumbers();}
             @Override public void removeUpdate(DocumentEvent e) {updateLineNumbers();}
             @Override public void changedUpdate(DocumentEvent e) {updateLineNumbers();}
         });
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        contentPane.add(scrollPane, BorderLayout.CENTER);
 
+        // Create the line number area
         lineNumberArea = new JTextArea("1");
-        lineNumberArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        lineNumberArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         lineNumberArea.setEditable(false);
         lineNumberArea.setBackground(Color.LIGHT_GRAY);
-        lineNumberScrollPane = new JScrollPane(lineNumberArea);
-        lineNumberScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
-        lineNumberScrollPane.setPreferredSize(new Dimension(40, textArea.getHeight()));
-        contentPane.add(lineNumberScrollPane, BorderLayout.WEST);
-
-        JPanel addressHexContainer = new JPanel();
-        addressHexContainer.setLayout(new BoxLayout(addressHexContainer, BoxLayout.X_AXIS));
-
+        // Create the addresses area
         addressArea = new JTextArea("0x0000");
-        addressArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        addressArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         addressArea.setEditable(false);
         addressArea.setBackground(Color.LIGHT_GRAY);
-        addressScrollPane = new JScrollPane(addressArea);
-        addressScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
-        addressScrollPane.setPreferredSize(new Dimension(60, textArea.getHeight()));
-        addressHexContainer.add(addressScrollPane, BorderLayout.WEST);
-
+        // Create the hex dump area
         hexDumpArea = new JTextArea("00");
-        hexDumpArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        hexDumpArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         hexDumpArea.setEditable(false);
         hexDumpArea.setBackground(Color.LIGHT_GRAY);
-        hexDumpScrollPane = new JScrollPane(hexDumpArea);
-        hexDumpScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
-        hexDumpScrollPane.setPreferredSize(new Dimension(80, textArea.getHeight()));
-        addressHexContainer.add(hexDumpScrollPane, BorderLayout.EAST);
+        // Organize the components
+        JScrollPane textScrollPane = new JScrollPane(textArea);
+        JScrollPane lineNumberScrollPane = new JScrollPane(lineNumberArea);
+        JScrollPane addressScrollPane = new JScrollPane(addressArea);
+        addressScrollPane.setPreferredSize(new Dimension(80, textScrollPane.getHeight()));
+        JScrollPane hexDumpScrollPane = new JScrollPane(hexDumpArea);
 
-        contentPane.add(addressHexContainer, BorderLayout.EAST);
+        textScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        textScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+        lineNumberScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        lineNumberScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+        addressScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        addressScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+        hexDumpScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
+        AdjustmentListener adjustmentListener = e -> {
+            int value = e.getValue();
+            textScrollPane.getVerticalScrollBar().setValue(value);
+            lineNumberScrollPane.getVerticalScrollBar().setValue(value);
+            addressScrollPane.getVerticalScrollBar().setValue(value);
+            hexDumpScrollPane.getVerticalScrollBar().setValue(value);
+        };
+
+        textScrollPane.getVerticalScrollBar().addAdjustmentListener(adjustmentListener);
+        lineNumberScrollPane.getVerticalScrollBar().addAdjustmentListener(adjustmentListener);
+        addressScrollPane.getVerticalScrollBar().addAdjustmentListener(adjustmentListener);
+        hexDumpScrollPane.getVerticalScrollBar().addAdjustmentListener(adjustmentListener);
+
+        JPanel left = new JPanel(new BorderLayout()), right = new JPanel(new BorderLayout());
+        left.add(lineNumberScrollPane, BorderLayout.WEST);
+        left.add(textScrollPane, BorderLayout.CENTER);
+        right.add(addressScrollPane, BorderLayout.WEST);
+        right.add(hexDumpScrollPane, BorderLayout.CENTER);
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
+        splitPane.setResizeWeight(0.7);
+
+        contentPane.add(splitPane, BorderLayout.CENTER);
+
+        // Output area
         JPanel outputContainer = new JPanel();
+        outputContainer.setLayout(new BoxLayout(outputContainer, BoxLayout.X_AXIS));
         outputContainer.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
         JButton copyButton = new JButton("Copy");
         copyButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
+            @Override public void actionPerformed(ActionEvent e) {
                 StringSelection stringSelection = new StringSelection(outputArea.getText());
                 Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
                 clipboard.setContents(stringSelection, null);
@@ -114,39 +131,41 @@ public class Main extends JFrame {
         outputContainer.add(copyButton, BorderLayout.SOUTH);
 
         outputArea = new JTextArea("");
-        outputArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        outputArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         outputArea.setEditable(false);
-        outputScrollPane = new JScrollPane(outputArea);
+        JScrollPane outputScrollPane = new JScrollPane(outputArea);
         outputScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
-        outputScrollPane.setPreferredSize(new Dimension((int) (getWidth() * 0.8), 40));
+        outputScrollPane.setPreferredSize(new Dimension(getWidth() - 20, 50));
         outputContainer.add(outputScrollPane, BorderLayout.CENTER);
 
         contentPane.add(outputContainer, BorderLayout.SOUTH);
 
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                int width = getWidth();
-                outputScrollPane.setPreferredSize(new Dimension((int) (width * 0.8), 40));
-                revalidate();
-            }
-        });
+        KeyStroke saveKeyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.CTRL_DOWN_MASK);
+        InputMap inputMap = textArea.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        inputMap.put(saveKeyStroke, "save");
+        Action saveAction = new AbstractAction() {@Override public void actionPerformed(ActionEvent e) {saveFile(false);}};
+
+        textArea.getActionMap().put("save", saveAction);
 
         setContentPane(contentPane);
         setVisible(true);
 
         updateLineNumbers();
-        syncScrollBars(scrollPane);
     }
 
     private void updateLineNumbers() {
         int totalLines = textArea.getLineCount();
         int digits = Math.max(String.valueOf(totalLines).length(), 2);
-        StringBuilder sb = new StringBuilder();
+        StringBuilder lineNumberSb = new StringBuilder(), addressSb = new StringBuilder(), hexSb = new StringBuilder();
         for (int i = 1; i <= totalLines; i++) {
-            sb.append(String.format("%1$" + digits + "s", i)).append("\n");
+            lineNumberSb.append(String.format("%1$" + digits + "s", i)).append("\n");
+            addressSb.append("\n");
+            hexSb.append("\n");
         }
-        lineNumberArea.setText(sb.toString());
+        lineNumberArea.setText(lineNumberSb.toString());
+        addressArea.setText(addressSb.toString());
+        hexDumpArea.setText(hexSb.toString());
+        revalidate();
     }
 
     private void openFile() {
@@ -201,12 +220,17 @@ public class Main extends JFrame {
 
     private void assembleCode() {
         String code = textArea.getText();
+        if (code.isEmpty()) {
+            outputArea.setText("Error: nothing to assemble.");
+            return;
+        }
         String[] lines = code.split("\\n");
         StringBuilder addressSb = new StringBuilder();
         StringBuilder hexDumpSb = new StringBuilder();
         StringBuilder outputSb = new StringBuilder();
         int address = 0;
         boolean startAddressFound = false;
+        int endLine = textArea.getLineCount();//the first line that has nothing to assemble
         Map<String, Integer> foundLabels = new HashMap<>();//int represents the address of the label
 
         // First pass to get labels and directives and check for syntax errors
@@ -233,7 +257,7 @@ public class Main extends JFrame {
                             outputArea.setText("Error: Unrecognized token. Consider adding a ';' to make the following text a comment. Line " + lineNum);
                             return;
                         }
-                        addressSb.append(String.format("0x%04X", address)).append("\n");
+                        addressSb.append("\n");
                         continue;
                     } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
                         outputArea.setText("Error: could not find start address. Line " + lineNum);
@@ -252,7 +276,7 @@ public class Main extends JFrame {
                     return;
                 }
                 addressSb.append("\n");
-                break;
+                continue;
             }
 
             // Check for label
@@ -339,11 +363,10 @@ public class Main extends JFrame {
             }
 
             // Update the address
+            endLine = lineNum + 1;
             addressSb.append(String.format("0x%04X", address)).append("\n");
             address += instructionSize;
         }
-
-        addressSb.deleteCharAt(addressSb.length() - 1);
 
         // Second pass for assembling and mapping labels to addresses
         for (int lineNum = 0; lineNum < lines.length; lineNum++) {
@@ -517,9 +540,9 @@ public class Main extends JFrame {
                         break;
                     case "DAT":
                         if (tokens[1].startsWith("$")) {
-                            String hexString = tokens[1];
-                            if (tokens[1].length() % 2 != 0) {
-                                hexString = "0" + tokens[1];
+                            String hexString = tokens[1].substring(1);
+                            if (hexString.length() % 2 != 0) {
+                                hexString = "0" + hexString;
                             }
                             String[] hexPairs = hexString.split("(?<=\\G..)");
                             byte[] byteArray = new byte[hexPairs.length];
@@ -534,6 +557,54 @@ public class Main extends JFrame {
                             return;
                         }
                         break;
+                    case "TXA":
+                        if (tokens.length == 1) {
+                            lineHexDump.add((byte) 0x8A);
+                        } else {
+                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum);
+                            return;
+                        }
+                        break;
+                    case "TYA":
+                        if (tokens.length == 1) {
+                            lineHexDump.add((byte) 0x98);
+                        } else {
+                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum);
+                            return;
+                        }
+                        break;
+                    case "TAX":
+                        if (tokens.length == 1) {
+                            lineHexDump.add((byte) 0xAA);
+                        } else {
+                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum);
+                            return;
+                        }
+                        break;
+                    case "TAY":
+                        if (tokens.length == 1) {
+                            lineHexDump.add((byte) 0xA8);
+                        } else {
+                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum);
+                            return;
+                        }
+                        break;
+                    case "NOP":
+                        if (tokens.length == 1) {
+                            lineHexDump.add((byte) 0xEA);
+                        } else {
+                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum);
+                            return;
+                        }
+                        break;
+                    case "BRK":
+                        if (tokens.length == 1) {
+                            lineHexDump.add((byte) 0x00);
+                        } else {
+                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum);
+                            return;
+                        }
+                        break;
                     default:
                         outputArea.setText("Error: invalid instruction/token. Line " + lineNum);
                         return;
@@ -543,16 +614,18 @@ public class Main extends JFrame {
                 return;
             }
 
-            for (byte b : lineHexDump) {
-                hexDumpSb.append(String.format("%02X", b)).append(" ");
-                outputSb.append(String.format("0x%02X", b)).append(", ");
+            for (int i = 0; i < lineHexDump.size(); i++) {
+                hexDumpSb.append(String.format("%02X", lineHexDump.get(i)));
+                outputSb.append(String.format("0x%02X", lineHexDump.get(i)));
+                if (i < lineHexDump.size() - 1) {
+                    hexDumpSb.append(" ");
+                }
+                if (lineNum < endLine - 1 || i < lineHexDump.size() - 1) {
+                    outputSb.append(", ");
+                }
             }
-            hexDumpSb.deleteCharAt(hexDumpSb.length() - 1);
             hexDumpSb.append("\n");
         }
-        hexDumpSb.deleteCharAt(hexDumpSb.length() - 1);
-        outputSb.deleteCharAt(hexDumpSb.length() - 1);
-        outputSb.deleteCharAt(hexDumpSb.length() - 1);
 
         // Update the address area and hex dump area
         addressArea.setText(addressSb.toString());
@@ -604,28 +677,6 @@ public class Main extends JFrame {
             int intValue = foundLabels.get(tokens[1]);
             return new byte[] {(byte) (intValue & 0xFF), (byte) ((intValue >> 8) & 0xFF)};
         }
-    }
-
-    private void syncScrollBars(JScrollPane scrollPane) {
-        JScrollBar verticalBar = scrollPane.getVerticalScrollBar();
-        JScrollBar lineNumberBar = lineNumberScrollPane.getVerticalScrollBar();
-        JScrollBar addressBar = addressScrollPane.getVerticalScrollBar();
-        JScrollBar hexDumpBar = hexDumpScrollPane.getVerticalScrollBar();
-
-        verticalBar.addAdjustmentListener(e -> {
-            lineNumberBar.setValue(verticalBar.getValue());
-            addressBar.setValue(verticalBar.getValue());
-            hexDumpBar.setValue(verticalBar.getValue());
-        });
-
-        textArea.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
-                lineNumberBar.setValue(verticalBar.getValue());
-                addressBar.setValue(verticalBar.getValue());
-                hexDumpBar.setValue(verticalBar.getValue());
-            }
-        });
     }
 
     public static void main(String[] args) {
