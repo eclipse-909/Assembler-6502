@@ -41,9 +41,10 @@ You can find the JAR file in this directory: https://github.com/eclipse-909/Asse
 - Use DAT to declare variables
 - Labels must end in ":" and cannot contain spaces or start with a number
 - Hex is the only supported base
+- Addressed are stored little-endian, DAT values are stored as written
 - If you need a label to apply to an operand rather than an opcode,
 you can do "label: +$##" where ## is the hex number representing the offset from the opcode.
-For example, +$00 would do nothing, and +$01 would be the byte after, and so on.
+For example, +$00 would do nothing, and +$01 would be the byte after, and so on
 
 Here's example code:
 ```Assembly
@@ -56,5 +57,21 @@ Here's example code:
 helloWorld:
     DAT $48656C6C6F20576F726C642100
     
+    .END
+```
+```Assembly
+    .ORG $0000
+
+low_byte: +$01   ;label points to 08
+    LDA $0008    ;load 2
+
+high_byte: +$02  ;label points to 00
+    LDA $0007    ;load 1
+
+second_byte: +$01 ;label points to 02
+    DAT $010203
+
+    STA low_byte ;store 7 where the 8 was
+
     .END
 ```
