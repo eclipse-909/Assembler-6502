@@ -287,7 +287,18 @@ public class Main extends JFrame {
 
             // Check for label
             if (tokens[0].endsWith(":")) {
-                if (tokens.length > 1) {
+                if (tokens.length == 2 && tokens[1].startsWith("+$")) {
+                    try {
+                        byte offset = Byte.parseByte(tokens[1].substring(2), 16);
+                        String label = tokens[0].substring(0, tokens[0].length() - 1);
+                        foundLabels.put(label, address + offset);
+                        addressSb.append("\n");
+                        continue;
+                    } catch (NumberFormatException e) {
+                        outputArea.setText("Error: label offset must be formatted as +$## in hex. Line " + lineNum + 1);
+                        return;
+                    }
+                } else if (tokens.length > 2) {
                     outputArea.setText("Error: Unrecognized token. Consider adding a ';' to make the following text a comment. Line " + lineNum + 1);
                     return;
                 }
@@ -304,7 +315,7 @@ public class Main extends JFrame {
                 case "LDX":
                 case "LDY":
                     if (tokens.length == 2 && !tokens[1].matches("^\\d.*")) {
-                        if (tokens[1].startsWith("#")) {
+                        if (tokens[1].startsWith("#$")) {
                             instructionSize = 2;
                         } else {
                             instructionSize = 3;
@@ -394,7 +405,7 @@ public class Main extends JFrame {
             try {
                 switch (tokens[0].toUpperCase()) {
                     case "LDA":
-                        if (tokens[1].startsWith("#")) {
+                        if (tokens[1].startsWith("#$")) {
                             lineHexDump.add((byte) 0xA9);
                             lineHexDump.add(parseConst(tokens));
                         } else if (tokens[1].startsWith("$")) {
@@ -445,7 +456,7 @@ public class Main extends JFrame {
                         }
                         break;
                     case "LDX":
-                        if (tokens[1].startsWith("#")) {
+                        if (tokens[1].startsWith("#$")) {
                             lineHexDump.add((byte) 0xA2);
                             lineHexDump.add(parseConst(tokens));
                         } else if (tokens[1].startsWith("$")) {
@@ -464,7 +475,7 @@ public class Main extends JFrame {
                         }
                         break;
                     case "LDY":
-                        if (tokens[1].startsWith("#")) {
+                        if (tokens[1].startsWith("#$")) {
                             lineHexDump.add((byte) 0xA0);
                             lineHexDump.add(parseConst(tokens));
                         } else if (tokens[1].startsWith("$")) {
