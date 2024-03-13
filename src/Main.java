@@ -240,6 +240,7 @@ public class Main extends JFrame {
         boolean startAddressFound = false;
         int endLine = textArea.getLineCount();//the first line that has nothing to assemble
         Map<String, Integer> foundLabels = new HashMap<>();//int represents the address of the label
+        Map<String, Integer> requestedLabels = new HashMap<>();//int represents the address of the label. Only tracks labels with relative addressing
 
         // First pass to get labels and directives and check for syntax errors
         for (int lineNum = 0; lineNum < lines.length; lineNum++) {
@@ -341,6 +342,9 @@ public class Main extends JFrame {
                 case "BNE":
                     if (tokens.length == 2 && !tokens[1].matches("^\\d.*")) {
                         instructionSize = 2;
+                        if (!tokens[1].startsWith("$")) {
+                            requestedLabels.put(tokens[1], address + 1);
+                        }
                     } else {
                         outputArea.setText("Assembling Error: invalid operand. Line " + (lineNum + 1));
                         return;
@@ -517,7 +521,7 @@ public class Main extends JFrame {
                             lineHexDump.add(parseRelAddr(tokens));
                         } else if (foundLabels.containsKey(tokens[1])) {
                             lineHexDump.add((byte) 0xD0);
-                            lineHexDump.add(parseRelLabel(tokens, foundLabels, address));
+                            lineHexDump.add(parseRelLabel(tokens, foundLabels, requestedLabels));
                         } else {
                             outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                             return;
@@ -657,7 +661,7 @@ public class Main extends JFrame {
         if (operand.length() == 2) {
             return Byte.parseByte(operand, 16);
         }
-        throw new InvalidTokenException("Invalid operand length");
+        throw new InvalidTokenException("Invalid operand length. Should be 2 digit hex number");
     }
 
     private byte parseRelAddr(String[] tokens) throws InvalidTokenException {
@@ -665,7 +669,7 @@ public class Main extends JFrame {
         if (operand.length() == 2) {
             return Byte.parseByte(operand, 16);
         }
-        throw new InvalidTokenException("Invalid operand length");
+        throw new InvalidTokenException("Invalid operand length. Should be 2 digit hex number");
     }
 
     private byte[] parseAbsAddr(String[] tokens) throws InvalidTokenException {
@@ -674,28 +678,26 @@ public class Main extends JFrame {
             int intValue = Integer.parseInt(operand, 16);
             return new byte[] {(byte) (intValue & 0xFF), (byte) ((intValue >> 8) & 0xFF)};
         }
-        throw new InvalidTokenException("Invalid operand length");
+        throw new InvalidTokenException("Invalid operand length. Should be 4 digit hex number");
     }
 
-    private byte parseRelLabel(String[] tokens, Map<String, Integer> foundLabels, int address) throws InvalidTokenException {
-        if (!foundLabels.containsKey(tokens[1])) {
-            throw new InvalidTokenException("Label not found.");
-        } else {
-            int difference = foundLabels.get(tokens[1]) - (address + 2);
-            if (difference < -128 || difference > 127) {
-                throw new InvalidTokenException("Target address is too far for relative addressing");
-            }
-            return (byte) difference;
+    private byte parseRelLabel(String[] tokens, Map<String, Integer> foundLabels, Map<String, Integer> requestedLabels) throws InvalidTokenException {
+        if (!foundLabels.containsKey(tokens[1]) || !requestedLabels.containsKey(tokens[1])) {
+            throw new InvalidTokenException("Could not find label: " + tokens[1]);
         }
+        int difference = foundLabels.get(tokens[1]) - (requestedLabels.get(tokens[1]) + 1);
+        if (difference < -128 || difference > 127) {
+            throw new InvalidTokenException("Target address is too far for relative addressing. The change must be between -128 and 127 inclusive. Consider chain branching");
+        }
+        return (byte) difference;
     }
 
     private byte[] parseAbsLabel(String[] tokens, Map<String, Integer> foundLabels) throws InvalidTokenException {
         if (!foundLabels.containsKey(tokens[1])) {
-            throw new InvalidTokenException("Label not found");
-        } else {
-            int intValue = foundLabels.get(tokens[1]);
-            return new byte[] {(byte) (intValue & 0xFF), (byte) ((intValue >> 8) & 0xFF)};
+            throw new InvalidTokenException("Could not find label: " + tokens[1]);
         }
+        int intValue = foundLabels.get(tokens[1]);
+        return new byte[] {(byte) (intValue & 0xFF), (byte) ((intValue >> 8) & 0xFF)};
     }
 
     private static class InvalidTokenException extends Exception {
