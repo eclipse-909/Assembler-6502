@@ -5,9 +5,11 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
-import java.awt.event.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.AdjustmentListener;
+import java.awt.event.KeyEvent;
 import java.io.*;
-import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -190,7 +192,7 @@ public class Main extends JFrame {
                     textArea.setText(stringBuilder.toString());
                     currentFile = file;
                 } catch (IOException e) {
-                    outputArea.setText("Error: could not open file.");
+                    outputArea.setText("Fatal Error: could not open file.");
                 }
             } else {
                 JOptionPane.showMessageDialog(this, "Please select a file with the .asm6502 extension.", "Invalid File Type", JOptionPane.ERROR_MESSAGE);
@@ -205,7 +207,7 @@ public class Main extends JFrame {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(currentFile))) {
                 writer.write(textArea.getText());
             } catch (IOException e) {
-                outputArea.setText("Error: could save as.");
+                outputArea.setText("Fatal Error: could save as.");
             }
         } else {
             int returnValue = fileChooser.showSaveDialog(this);
@@ -218,7 +220,7 @@ public class Main extends JFrame {
                     writer.write(textArea.getText());
                     currentFile = file;
                 } catch (IOException e) {
-                    outputArea.setText("Error: could save file.");
+                    outputArea.setText("Fatal Error: could save file.");
                 }
             }
         }
@@ -227,7 +229,7 @@ public class Main extends JFrame {
     private void assembleCode() {
         String code = textArea.getText();
         if (code.isEmpty()) {
-            outputArea.setText("Error: nothing to assemble.");
+            outputArea.setText("Assembling Error: nothing to assemble.");
             return;
         }
         String[] lines = code.split("\\n");
@@ -260,17 +262,17 @@ public class Main extends JFrame {
                         address = Integer.parseInt(tokens[1].substring(tokens[1].indexOf("$") + 1), 16);
                         startAddressFound = true;
                         if (tokens.length > 2) {
-                            outputArea.setText("Error: Unrecognized token. Consider adding a ';' to make the following text a comment. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: Unrecognized token. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                             return;
                         }
                         addressSb.append("\n");
                         continue;
                     } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
-                        outputArea.setText("Error: could not find start address. Line " + lineNum + 1);
+                        outputArea.setText("Assembling Error: could not find start address. Line " + (lineNum + 1));
                         return;
                     }
                 } else {
-                    outputArea.setText("Error: could not find start address. Line " + lineNum + 1);
+                    outputArea.setText("Assembling Error: could not find start address. Line " + (lineNum + 1));
                     return;
                 }
             }
@@ -278,7 +280,7 @@ public class Main extends JFrame {
             // Check for end
             if (tokens[0].equalsIgnoreCase(".END")) {
                 if (tokens.length > 1) {
-                    outputArea.setText("Error: Unrecognized token. Consider adding a ';' to make the following text a comment. Line " + lineNum + 1);
+                    outputArea.setText("Assembling Error: Unrecognized token. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                     return;
                 }
                 addressSb.append("\n");
@@ -295,11 +297,11 @@ public class Main extends JFrame {
                         addressSb.append("\n");
                         continue;
                     } catch (NumberFormatException e) {
-                        outputArea.setText("Error: label offset must be formatted as +$## in hex. Line " + lineNum + 1);
+                        outputArea.setText("Assembling Error: label offset must be formatted as '+$##' in hex. Line " + (lineNum + 1));
                         return;
                     }
                 } else if (tokens.length > 2) {
-                    outputArea.setText("Error: Unrecognized token. Consider adding a ';' to make the following text a comment. Line " + lineNum + 1);
+                    outputArea.setText("Assembling Error: Unrecognized token. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                     return;
                 }
                 String label = tokens[0].substring(0, tokens[0].length() - 1);
@@ -321,7 +323,7 @@ public class Main extends JFrame {
                             instructionSize = 3;
                         }
                     } else {
-                        outputArea.setText("Error: invalid operand. Line " + lineNum + 1);
+                        outputArea.setText("Assembling Error: invalid operand. Line " + (lineNum + 1));
                         return;
                     }
                     break;
@@ -332,7 +334,7 @@ public class Main extends JFrame {
                     if (tokens.length == 2 && !tokens[1].matches("^\\d.*")) {
                         instructionSize = 3;
                     } else {
-                        outputArea.setText("Error: invalid operand. Line " + lineNum + 1);
+                        outputArea.setText("Assembling Error: invalid operand. Line " + (lineNum + 1));
                         return;
                     }
                     break;
@@ -340,7 +342,7 @@ public class Main extends JFrame {
                     if (tokens.length == 2 && !tokens[1].matches("^\\d.*")) {
                         instructionSize = 2;
                     } else {
-                        outputArea.setText("Error: invalid operand. Line " + lineNum + 1);
+                        outputArea.setText("Assembling Error: invalid operand. Line " + (lineNum + 1));
                         return;
                     }
                     break;
@@ -351,7 +353,7 @@ public class Main extends JFrame {
                 case "NOP":
                 case "BRK":
                     if (tokens.length > 1) {
-                        outputArea.setText("Error: instruction requires no operand. Line " + lineNum + 1);
+                        outputArea.setText("Assembling Error: instruction requires no operand. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                         return;
                     }
                     instructionSize = 1;
@@ -362,7 +364,7 @@ public class Main extends JFrame {
                     } else if (tokens.length == 2 && !tokens[1].matches("^\\d.*")) {
                         instructionSize = 3;
                     } else {
-                        outputArea.setText("Error: invalid operand. Line " + lineNum + 1);
+                        outputArea.setText("Assembling Error: invalid operand. Line " + (lineNum + 1));
                         return;
                     }
                     break;
@@ -370,12 +372,12 @@ public class Main extends JFrame {
                     if (tokens.length == 2) {
                         instructionSize = (tokens[1].substring(1).length() + 1) / 2;
                     } else {
-                        outputArea.setText("Error: invalid operand. Line " + lineNum + 1);
+                        outputArea.setText("Assembling Error: invalid operand. Line " + (lineNum + 1));
                         return;
                     }
                     break;
                 default:
-                    outputArea.setText("Error: invalid instruction/token. Line " + lineNum + 1);
+                    outputArea.setText("Assembling Error: invalid instruction/token. Line " + (lineNum + 1));
                     return;
             }
 
@@ -419,7 +421,7 @@ public class Main extends JFrame {
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
-                            outputArea.setText("Error: invalid operand or label use. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -435,7 +437,7 @@ public class Main extends JFrame {
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
-                            outputArea.setText("Error: invalid operand or label use. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -451,7 +453,7 @@ public class Main extends JFrame {
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
-                            outputArea.setText("Error: invalid operand or label use. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -470,7 +472,7 @@ public class Main extends JFrame {
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
-                            outputArea.setText("Error: invalid operand or label use. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -489,7 +491,7 @@ public class Main extends JFrame {
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
-                            outputArea.setText("Error: invalid operand or label use. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -505,7 +507,7 @@ public class Main extends JFrame {
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
-                            outputArea.setText("Error: invalid operand or label use. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -517,7 +519,7 @@ public class Main extends JFrame {
                             lineHexDump.add((byte) 0xD0);
                             lineHexDump.add(parseRelLabel(tokens, foundLabels, address));
                         } else {
-                            outputArea.setText("Error: invalid operand or label use. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -533,7 +535,7 @@ public class Main extends JFrame {
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
-                            outputArea.setText("Error: invalid operand or label use. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -550,7 +552,7 @@ public class Main extends JFrame {
                                 lineHexDump.add(operands[0]);
                                 lineHexDump.add(operands[1]);
                             } else {
-                                outputArea.setText("Error: invalid operand or label use. Line " + lineNum + 1);
+                                outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                                 return;
                             }
                         }
@@ -570,7 +572,7 @@ public class Main extends JFrame {
                                 lineHexDump.add(b);
                             }
                         } else {
-                            outputArea.setText("Error: invalid operand or label use. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: invalid operand. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -578,7 +580,7 @@ public class Main extends JFrame {
                         if (tokens.length == 1) {
                             lineHexDump.add((byte) 0x8A);
                         } else {
-                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: instruction requires no operand. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -586,7 +588,7 @@ public class Main extends JFrame {
                         if (tokens.length == 1) {
                             lineHexDump.add((byte) 0x98);
                         } else {
-                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: instruction requires no operand. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -594,7 +596,7 @@ public class Main extends JFrame {
                         if (tokens.length == 1) {
                             lineHexDump.add((byte) 0xAA);
                         } else {
-                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: instruction requires no operand. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -602,7 +604,7 @@ public class Main extends JFrame {
                         if (tokens.length == 1) {
                             lineHexDump.add((byte) 0xA8);
                         } else {
-                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: instruction requires no operand. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -610,7 +612,7 @@ public class Main extends JFrame {
                         if (tokens.length == 1) {
                             lineHexDump.add((byte) 0xEA);
                         } else {
-                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: instruction requires no operand. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                             return;
                         }
                         break;
@@ -618,16 +620,16 @@ public class Main extends JFrame {
                         if (tokens.length == 1) {
                             lineHexDump.add((byte) 0x00);
                         } else {
-                            outputArea.setText("Error: instruction requires no operand. Line " + lineNum + 1);
+                            outputArea.setText("Assembling Error: instruction requires no operand. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                             return;
                         }
                         break;
                     default:
-                        outputArea.setText("Error: invalid instruction/token. Line " + lineNum + 1);
+                        outputArea.setText("Assembling Error: invalid instruction/token. Line " + (lineNum + 1));
                         return;
                 }
-            } catch (InvalidParameterException e) {
-                outputArea.setText("Error: " + e.getMessage() + ". Line " + lineNum + 1);
+            } catch (InvalidTokenException e) {
+                outputArea.setText("Assembling Error: " + e.getMessage() + ". Line " + (lineNum + 1));
                 return;
             }
 
@@ -650,49 +652,55 @@ public class Main extends JFrame {
         outputArea.setText(outputSb.toString());
     }
 
-    private byte parseConst(String[] tokens) throws InvalidParameterException {
+    private byte parseConst(String[] tokens) throws InvalidTokenException {
         String operand = tokens[1].substring(tokens[1].indexOf("$") + 1);
         if (operand.length() == 2) {
             return Byte.parseByte(operand, 16);
         }
-        throw new InvalidParameterException("Invalid operand length");
+        throw new InvalidTokenException("Invalid operand length");
     }
 
-    private byte parseRelAddr(String[] tokens) throws InvalidParameterException {
+    private byte parseRelAddr(String[] tokens) throws InvalidTokenException {
         String operand = tokens[1].substring(tokens[1].indexOf("$") + 1);
         if (operand.length() == 2) {
             return Byte.parseByte(operand, 16);
         }
-        throw new InvalidParameterException("Invalid operand length");
+        throw new InvalidTokenException("Invalid operand length");
     }
 
-    private byte[] parseAbsAddr(String[] tokens) throws InvalidParameterException {
+    private byte[] parseAbsAddr(String[] tokens) throws InvalidTokenException {
         String operand = tokens[1].substring(tokens[1].indexOf("$") + 1);
         if (operand.length() == 4) {
             int intValue = Integer.parseInt(operand, 16);
             return new byte[] {(byte) (intValue & 0xFF), (byte) ((intValue >> 8) & 0xFF)};
         }
-        throw new InvalidParameterException("Invalid operand length");
+        throw new InvalidTokenException("Invalid operand length");
     }
 
-    private byte parseRelLabel(String[] tokens, Map<String, Integer> foundLabels, int address) throws InvalidParameterException {
+    private byte parseRelLabel(String[] tokens, Map<String, Integer> foundLabels, int address) throws InvalidTokenException {
         if (!foundLabels.containsKey(tokens[1])) {
-            throw new InvalidParameterException("Label not found.");
+            throw new InvalidTokenException("Label not found.");
         } else {
             int difference = foundLabels.get(tokens[1]) - (address + 2);
             if (difference < -128 || difference > 127) {
-                throw new InvalidParameterException("Target address is too far for relative addressing");
+                throw new InvalidTokenException("Target address is too far for relative addressing");
             }
             return (byte) difference;
         }
     }
 
-    private byte[] parseAbsLabel(String[] tokens, Map<String, Integer> foundLabels) throws InvalidParameterException {
+    private byte[] parseAbsLabel(String[] tokens, Map<String, Integer> foundLabels) throws InvalidTokenException {
         if (!foundLabels.containsKey(tokens[1])) {
-            throw new InvalidParameterException("Label not found");
+            throw new InvalidTokenException("Label not found");
         } else {
             int intValue = foundLabels.get(tokens[1]);
             return new byte[] {(byte) (intValue & 0xFF), (byte) ((intValue >> 8) & 0xFF)};
+        }
+    }
+
+    private static class InvalidTokenException extends Exception {
+        private InvalidTokenException(String message) {
+            super(message);
         }
     }
 
