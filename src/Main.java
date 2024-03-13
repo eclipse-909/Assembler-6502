@@ -15,10 +15,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**The entire application; GUI plus backend logic.*/
 public class Main extends JFrame {
+    /**Text area.*/
     private final JTextArea textArea, lineNumberArea, addressArea, hexDumpArea, outputArea;
+    /**Tracks the open file to allow Save when Save As isn't necessary.*/
     private File currentFile;
 
+    /**Constructor for the window.*/
     public Main() {
         setTitle("6502 Assembler");
         setSize(800, 600);
@@ -155,6 +159,7 @@ public class Main extends JFrame {
         updateLineNumbers();
     }
 
+    /**Update the line numbers and clear the addresses and hex when the code is changed.*/
     private void updateLineNumbers() {
         int totalLines = textArea.getLineCount();
         int digits = Math.max(String.valueOf(totalLines).length(), 2);
@@ -173,6 +178,7 @@ public class Main extends JFrame {
         revalidate();
     }
 
+    /**Opens a file from disk and displays the assembly content.*/
     private void openFile() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setFileFilter(new FileNameExtensionFilter("Assembly files (*.asm6502)", "asm6502"));
@@ -192,7 +198,7 @@ public class Main extends JFrame {
                     textArea.setText(stringBuilder.toString());
                     currentFile = file;
                 } catch (IOException e) {
-                    outputArea.setText("Fatal Error: could not open file.");
+                    outputArea.setText("I/O Error: could not open file.");
                 }
             } else {
                 JOptionPane.showMessageDialog(this, "Please select a file with the .asm6502 extension.", "Invalid File Type", JOptionPane.ERROR_MESSAGE);
@@ -200,6 +206,7 @@ public class Main extends JFrame {
         }
     }
 
+    /**Saves the current assembly code to a file on disk.*/
     private void saveFile(boolean saveAs) {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setFileFilter(new FileNameExtensionFilter("Assembly files (*.asm6502)", "asm6502"));
@@ -207,7 +214,7 @@ public class Main extends JFrame {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(currentFile))) {
                 writer.write(textArea.getText());
             } catch (IOException e) {
-                outputArea.setText("Fatal Error: could save as.");
+                outputArea.setText("I/O Error: could save as.");
             }
         } else {
             int returnValue = fileChooser.showSaveDialog(this);
@@ -220,12 +227,15 @@ public class Main extends JFrame {
                     writer.write(textArea.getText());
                     currentFile = file;
                 } catch (IOException e) {
-                    outputArea.setText("Fatal Error: could save file.");
+                    outputArea.setText("I/O Error: could save file.");
                 }
             }
         }
     }
 
+    /**When you click the Assemble button, this function is called.
+     * This function will either give an error in the output if something went wrong
+     * or it will display corresponding addresses and hex for each line, and the resulting hex dump in the output.*/
     private void assembleCode() {
         String code = textArea.getText();
         if (code.isEmpty()) {
@@ -656,6 +666,7 @@ public class Main extends JFrame {
         outputArea.setText(outputSb.toString());
     }
 
+    /**Verifies the constant value in the operand.*/
     private byte parseConst(String[] tokens) throws InvalidTokenException {
         String operand = tokens[1].substring(tokens[1].indexOf("$") + 1);
         if (operand.length() == 2) {
@@ -664,6 +675,7 @@ public class Main extends JFrame {
         throw new InvalidTokenException("Invalid operand length. Should be 2 digit hex number");
     }
 
+    /**Verifies the relative address.*/
     private byte parseRelAddr(String[] tokens) throws InvalidTokenException {
         String operand = tokens[1].substring(tokens[1].indexOf("$") + 1);
         if (operand.length() == 2) {
@@ -672,6 +684,7 @@ public class Main extends JFrame {
         throw new InvalidTokenException("Invalid operand length. Should be 2 digit hex number");
     }
 
+    /**Converts the absolute address to little-endian.*/
     private byte[] parseAbsAddr(String[] tokens) throws InvalidTokenException {
         String operand = tokens[1].substring(tokens[1].indexOf("$") + 1);
         if (operand.length() == 4) {
@@ -681,17 +694,19 @@ public class Main extends JFrame {
         throw new InvalidTokenException("Invalid operand length. Should be 4 digit hex number");
     }
 
+    /**Gets the relative address the label refers to.*/
     private byte parseRelLabel(String[] tokens, Map<String, Integer> foundLabels, Map<String, Integer> requestedLabels) throws InvalidTokenException {
         if (!foundLabels.containsKey(tokens[1]) || !requestedLabels.containsKey(tokens[1])) {
             throw new InvalidTokenException("Could not find label: " + tokens[1]);
         }
         int difference = foundLabels.get(tokens[1]) - (requestedLabels.get(tokens[1]) + 1);
         if (difference < -128 || difference > 127) {
-            throw new InvalidTokenException("Target address is too far for relative addressing. The change must be between -128 and 127 inclusive. Consider chain branching");
+            throw new InvalidTokenException("Target address is too far for relative addressing. The change is " + difference + " and must be between -128 and 127 inclusive. Consider chain branching");
         }
         return (byte) difference;
     }
 
+    /**Gets the absolute address a label refers to.*/
     private byte[] parseAbsLabel(String[] tokens, Map<String, Integer> foundLabels) throws InvalidTokenException {
         if (!foundLabels.containsKey(tokens[1])) {
             throw new InvalidTokenException("Could not find label: " + tokens[1]);
@@ -700,12 +715,14 @@ public class Main extends JFrame {
         return new byte[] {(byte) (intValue & 0xFF), (byte) ((intValue >> 8) & 0xFF)};
     }
 
+    /**Thrown to indicate the instruction got a bad operand.*/
     private static class InvalidTokenException extends Exception {
         private InvalidTokenException(String message) {
             super(message);
         }
     }
 
+    /**Entry point.*/
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::new);
     }

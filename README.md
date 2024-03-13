@@ -36,7 +36,7 @@ You can find the JAR file in this directory: https://github.com/eclipse-909/Asse
 - Extra spacing is ignored
 - Anything after ";" is a comment
 - Not case-sensitive
-- Must start with .org $####
+- Must start with .org $####, but can only be used once
 - .end is optional, but anything after is ignored
 - Use DAT to declare variables
 - Labels must end in ":" and cannot contain spaces or start with a number
