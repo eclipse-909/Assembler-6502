@@ -11,9 +11,7 @@ import java.awt.event.AdjustmentListener;
 import java.awt.event.KeyEvent;
 import java.io.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**The entire application; GUI plus backend logic.*/
 public class Main extends JFrame {
@@ -252,8 +250,8 @@ public class Main extends JFrame {
         int address = 0;
         boolean startAddressFound = false;
         int endLine = textArea.getLineCount();//the first line that has nothing to assemble
-        Map<String, Integer> foundLabels = new HashMap<>();//int represents the address of the label
-        Map<String, Integer> requestedLabels = new HashMap<>();//int represents the address of the label. Only tracks labels with relative addressing
+        LabelList declaredLabels = new LabelList();
+        LabelList calledLabels = new LabelList();
 
         // First pass to get labels and directives and check for syntax errors
         for (int lineNum = 0; lineNum < lines.length; lineNum++) {
@@ -307,7 +305,7 @@ public class Main extends JFrame {
                     try {
                         byte offset = Byte.parseByte(tokens[1].substring(2), 16);
                         String label = tokens[0].substring(0, tokens[0].length() - 1);
-                        foundLabels.put(label, address + offset);
+                        declaredLabels.add(label, lineNum, address + offset);
                         addressSb.append("\n");
                         continue;
                     } catch (NumberFormatException e) {
@@ -319,7 +317,12 @@ public class Main extends JFrame {
                     return;
                 }
                 String label = tokens[0].substring(0, tokens[0].length() - 1);
-                foundLabels.put(label, address);
+                int line = declaredLabels.lineNumberOf(label);
+                if (line != -1) {
+                    outputArea.setText("Assembling Error: Duplicate label declared. Lines " + (lineNum + 1) + " & " + (line + 1));
+                    return;
+                }
+                declaredLabels.add(label, lineNum, address);
                 addressSb.append("\n");
                 continue;
             }
@@ -356,7 +359,7 @@ public class Main extends JFrame {
                     if (tokens.length == 2 && !tokens[1].matches("^\\d.*")) {
                         instructionSize = 2;
                         if (!tokens[1].startsWith("$")) {
-                            requestedLabels.put(tokens[1], address + 1);
+                            calledLabels.add(tokens[1], lineNum, address + 1);
                         }
                     } else {
                         outputArea.setText("Assembling Error: invalid operand. Line " + (lineNum + 1));
@@ -432,9 +435,9 @@ public class Main extends JFrame {
                             byte[] operands = parseAbsAddr(tokens);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
-                        } else if (foundLabels.containsKey(tokens[1])) {
+                        } else if (declaredLabels.addressOfFirst(tokens[1]) != -1) {
                             lineHexDump.add((byte) 0xAD);
-                            byte[] operands = parseAbsLabel(tokens, foundLabels);
+                            byte[] operands = parseAbsLabel(tokens, declaredLabels);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
@@ -448,9 +451,9 @@ public class Main extends JFrame {
                             byte[] operands = parseAbsAddr(tokens);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
-                        } else if (foundLabels.containsKey(tokens[1])) {
+                        } else if (declaredLabels.addressOfFirst(tokens[1]) != -1) {
                             lineHexDump.add((byte) 0x8D);
-                            byte[] operands = parseAbsLabel(tokens, foundLabels);
+                            byte[] operands = parseAbsLabel(tokens, declaredLabels);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
@@ -464,9 +467,9 @@ public class Main extends JFrame {
                             byte[] operands = parseAbsAddr(tokens);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
-                        } else if (foundLabels.containsKey(tokens[1])) {
+                        } else if (declaredLabels.addressOfFirst(tokens[1]) != -1) {
                             lineHexDump.add((byte) 0x6D);
-                            byte[] operands = parseAbsLabel(tokens, foundLabels);
+                            byte[] operands = parseAbsLabel(tokens, declaredLabels);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
@@ -483,9 +486,9 @@ public class Main extends JFrame {
                             byte[] operands = parseAbsAddr(tokens);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
-                        } else if (foundLabels.containsKey(tokens[1])) {
+                        } else if (declaredLabels.addressOfFirst(tokens[1]) != -1) {
                             lineHexDump.add((byte) 0xAE);
-                            byte[] operands = parseAbsLabel(tokens, foundLabels);
+                            byte[] operands = parseAbsLabel(tokens, declaredLabels);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
@@ -502,9 +505,9 @@ public class Main extends JFrame {
                             byte[] operands = parseAbsAddr(tokens);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
-                        } else if (foundLabels.containsKey(tokens[1])) {
+                        } else if (declaredLabels.addressOfFirst(tokens[1]) != -1) {
                             lineHexDump.add((byte) 0xAC);
-                            byte[] operands = parseAbsLabel(tokens, foundLabels);
+                            byte[] operands = parseAbsLabel(tokens, declaredLabels);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
@@ -518,9 +521,9 @@ public class Main extends JFrame {
                             byte[] operands = parseAbsAddr(tokens);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
-                        } else if (foundLabels.containsKey(tokens[1])) {
+                        } else if (declaredLabels.addressOfFirst(tokens[1]) != -1) {
                             lineHexDump.add((byte) 0xEC);
-                            byte[] operands = parseAbsLabel(tokens, foundLabels);
+                            byte[] operands = parseAbsLabel(tokens, declaredLabels);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
@@ -532,9 +535,9 @@ public class Main extends JFrame {
                         if (tokens[1].startsWith("$")) {
                             lineHexDump.add((byte) 0xD0);
                             lineHexDump.add(parseRelAddr(tokens));
-                        } else if (foundLabels.containsKey(tokens[1])) {
+                        } else if (declaredLabels.addressOfFirst(tokens[1]) != -1) {
                             lineHexDump.add((byte) 0xD0);
-                            lineHexDump.add(parseRelLabel(tokens, foundLabels, requestedLabels));
+                            lineHexDump.add(parseRelLabel(tokens, declaredLabels, calledLabels, lineNum));
                         } else {
                             outputArea.setText("Assembling Error: invalid operand or label use. Line " + (lineNum + 1));
                             return;
@@ -546,9 +549,9 @@ public class Main extends JFrame {
                             byte[] operands = parseAbsAddr(tokens);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
-                        } else if (foundLabels.containsKey(tokens[1])) {
+                        } else if (declaredLabels.addressOfFirst(tokens[1]) != -1) {
                             lineHexDump.add((byte) 0xEE);
-                            byte[] operands = parseAbsLabel(tokens, foundLabels);
+                            byte[] operands = parseAbsLabel(tokens, declaredLabels);
                             lineHexDump.add(operands[0]);
                             lineHexDump.add(operands[1]);
                         } else {
@@ -563,8 +566,8 @@ public class Main extends JFrame {
                                 byte[] operands = parseAbsAddr(tokens);
                                 lineHexDump.add(operands[0]);
                                 lineHexDump.add(operands[1]);
-                            } else if (foundLabels.containsKey(tokens[1])) {
-                                byte[] operands = parseAbsLabel(tokens, foundLabels);
+                            } else if (declaredLabels.addressOfFirst(tokens[1]) != -1) {
+                                byte[] operands = parseAbsLabel(tokens, declaredLabels);
                                 lineHexDump.add(operands[0]);
                                 lineHexDump.add(operands[1]);
                             } else {
@@ -697,11 +700,13 @@ public class Main extends JFrame {
     }
 
     /**Gets the relative address the label refers to.*/
-    private byte parseRelLabel(String[] tokens, Map<String, Integer> foundLabels, Map<String, Integer> requestedLabels) throws InvalidTokenException {
-        if (!foundLabels.containsKey(tokens[1]) || !requestedLabels.containsKey(tokens[1])) {
+    private byte parseRelLabel(String[] tokens, LabelList decLabels, LabelList callLabels, int line) throws InvalidTokenException {
+        int decAddr = decLabels.addressOfFirst(tokens[1]);
+        int callAddr = callLabels.addressOfAt(tokens[1], line);
+        if (decAddr == -1 || callAddr == -1) {
             throw new InvalidTokenException("Could not find label: " + tokens[1]);
         }
-        int difference = foundLabels.get(tokens[1]) - (requestedLabels.get(tokens[1]) + 1);
+        int difference = decAddr - (callAddr + 1);
         if (difference < -128 || difference > 127) {
             throw new InvalidTokenException("Target address is too far for relative addressing. The change is " + difference + " and must be between -128 and 127 inclusive. Consider chain branching");
         }
@@ -709,18 +714,66 @@ public class Main extends JFrame {
     }
 
     /**Gets the absolute address a label refers to.*/
-    private byte[] parseAbsLabel(String[] tokens, Map<String, Integer> foundLabels) throws InvalidTokenException {
-        if (!foundLabels.containsKey(tokens[1])) {
+    private byte[] parseAbsLabel(String[] tokens, LabelList decLabels) throws InvalidTokenException {
+        int decAddress = decLabels.addressOfFirst(tokens[1]);
+        if (decAddress == -1) {
             throw new InvalidTokenException("Could not find label: " + tokens[1]);
         }
-        int intValue = foundLabels.get(tokens[1]);
-        return new byte[] {(byte) (intValue & 0xFF), (byte) ((intValue >> 8) & 0xFF)};
+        return new byte[] {(byte) (decAddress & 0xFF), (byte) ((decAddress >> 8) & 0xFF)};
     }
 
     /**Thrown to indicate the instruction got a bad operand.*/
     private static class InvalidTokenException extends Exception {
         private InvalidTokenException(String message) {
             super(message);
+        }
+    }
+
+    /**Custom data structure to keep track of labels.*/
+    private static class LabelList {
+        private final List<Label> labels;
+        private void add(String n, int l, int a) {labels.add(new Label(n, l, a));}
+
+        private LabelList() {
+            labels = new ArrayList<>();
+        }
+
+        private int lineNumberOf(String n) {
+            for (Label label : labels) {
+                if (label.name.equals(n)) {
+                    return label.lineNumber;
+                }
+            }
+            return -1;
+        }
+
+        private int addressOfFirst(String n) {
+            for (Label label : labels) {
+                if (label.name.equals(n)) {
+                    return label.address;
+                }
+            }
+            return -1;
+        }
+
+        private int addressOfAt(String n, int l) {
+            for (Label label : labels) {
+                if (label.name.equals(n) && label.lineNumber == l) {
+                    return label.address;
+                }
+            }
+            return -1;
+        }
+
+        private static class Label {
+            private final String name;
+            private final int lineNumber, address;
+
+            private Label(String n, int l, int a) {
+                name = n;
+                lineNumber = l;
+                address = a;
+            }
         }
     }
 
