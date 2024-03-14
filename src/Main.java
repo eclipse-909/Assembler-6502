@@ -19,6 +19,7 @@ import java.util.Map;
 public class Main extends JFrame {
     /**Text area.*/
     private final JTextArea textArea, lineNumberArea, addressArea, hexDumpArea, outputArea;
+    /**Scroll pane for text area.*/
     private final JScrollPane textScrollPane, lineNumberScrollPane, addressScrollPane, hexDumpScrollPane;
     /**Tracks the open file to allow Save when Save As isn't necessary.*/
     private File currentFile;
@@ -97,19 +98,9 @@ public class Main extends JFrame {
         addressScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         addressScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
         hexDumpScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-/*
-        AdjustmentListener codeAdjustmentListener = e -> {
-            int value = e.getValue();
-            System.out.println("Code Adj. Setting scroll to " + value);////////////////////////////////////////////////////////////////////////////////////////////////
-            //textScrollPane.getVerticalScrollBar().setValue(value);
-            lineNumberScrollPane.getVerticalScrollBar().setValue(value);
-            addressScrollPane.getVerticalScrollBar().setValue(value);
-            hexDumpScrollPane.getVerticalScrollBar().setValue(value);
-        };
-*/
+
         AdjustmentListener adjustmentListener = e -> {
             int value = e.getValue();
-            System.out.println("Setting scroll to " + value);////////////////////////////////////////////////////////////////////////////////////////////////
             textScrollPane.getVerticalScrollBar().setValue(value);
             lineNumberScrollPane.getVerticalScrollBar().setValue(value);
             addressScrollPane.getVerticalScrollBar().setValue(value);
@@ -272,8 +263,8 @@ public class Main extends JFrame {
             }
             String[] tokens = lines[lineNum].trim().split("\\s*[;].*|\\s+");
 
-            // Check for comment
-            if (tokens[0].isEmpty()) {
+            // Check for comment or empty line
+            if (tokens.length == 0 || tokens[0].isEmpty()) {
                 addressSb.append("\n");
                 continue;
             }
@@ -421,8 +412,8 @@ public class Main extends JFrame {
             }
             String[] tokens = lines[lineNum].trim().split("\\s*[;].*|\\s+");
 
-            // Ignore first pass checks for org, end, labels, and comments
-            if (tokens[0].equalsIgnoreCase(".ORG") || tokens[0].equalsIgnoreCase(".END") || tokens[0].endsWith(":") || tokens[0].isEmpty()) {
+            // Ignore first pass checks for empty lines, org, end, labels, and comments
+            if (tokens.length == 0 || tokens[0].equalsIgnoreCase(".ORG") || tokens[0].equalsIgnoreCase(".END") || tokens[0].endsWith(":") || tokens[0].isEmpty()) {
                 hexDumpSb.append("\n");
                 continue;
             }
