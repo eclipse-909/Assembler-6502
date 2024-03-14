@@ -19,6 +19,7 @@ import java.util.Map;
 public class Main extends JFrame {
     /**Text area.*/
     private final JTextArea textArea, lineNumberArea, addressArea, hexDumpArea, outputArea;
+    private final JScrollPane textScrollPane, lineNumberScrollPane, addressScrollPane, hexDumpScrollPane;
     /**Tracks the open file to allow Save when Save As isn't necessary.*/
     private File currentFile;
 
@@ -68,26 +69,26 @@ public class Main extends JFrame {
         });
 
         // Create the line number area
-        lineNumberArea = new JTextArea("1");
+        lineNumberArea = new JTextArea("1") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         lineNumberArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         lineNumberArea.setEditable(false);
         lineNumberArea.setBackground(Color.LIGHT_GRAY);
         // Create the addresses area
-        addressArea = new JTextArea("0x0000");
+        addressArea = new JTextArea("0x0000") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         addressArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         addressArea.setEditable(false);
         addressArea.setBackground(Color.LIGHT_GRAY);
         // Create the hex dump area
-        hexDumpArea = new JTextArea("00");
+        hexDumpArea = new JTextArea("00") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         hexDumpArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         hexDumpArea.setEditable(false);
         hexDumpArea.setBackground(Color.LIGHT_GRAY);
         // Organize the components
-        JScrollPane textScrollPane = new JScrollPane(textArea);
-        JScrollPane lineNumberScrollPane = new JScrollPane(lineNumberArea);
-        JScrollPane addressScrollPane = new JScrollPane(addressArea);
+        textScrollPane = new JScrollPane(textArea);
+        lineNumberScrollPane = new JScrollPane(lineNumberArea);
+        addressScrollPane = new JScrollPane(addressArea);
         addressScrollPane.setPreferredSize(new Dimension(80, textScrollPane.getHeight()));
-        JScrollPane hexDumpScrollPane = new JScrollPane(hexDumpArea);
+        hexDumpScrollPane = new JScrollPane(hexDumpArea);
 
         textScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         textScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
@@ -96,9 +97,19 @@ public class Main extends JFrame {
         addressScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         addressScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
         hexDumpScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-
+/*
+        AdjustmentListener codeAdjustmentListener = e -> {
+            int value = e.getValue();
+            System.out.println("Code Adj. Setting scroll to " + value);////////////////////////////////////////////////////////////////////////////////////////////////
+            //textScrollPane.getVerticalScrollBar().setValue(value);
+            lineNumberScrollPane.getVerticalScrollBar().setValue(value);
+            addressScrollPane.getVerticalScrollBar().setValue(value);
+            hexDumpScrollPane.getVerticalScrollBar().setValue(value);
+        };
+*/
         AdjustmentListener adjustmentListener = e -> {
             int value = e.getValue();
+            System.out.println("Setting scroll to " + value);////////////////////////////////////////////////////////////////////////////////////////////////
             textScrollPane.getVerticalScrollBar().setValue(value);
             lineNumberScrollPane.getVerticalScrollBar().setValue(value);
             addressScrollPane.getVerticalScrollBar().setValue(value);
@@ -197,6 +208,7 @@ public class Main extends JFrame {
                     }
                     textArea.setText(stringBuilder.toString());
                     currentFile = file;
+                    SwingUtilities.invokeLater(() -> textArea.setCaretPosition(0));
                 } catch (IOException e) {
                     outputArea.setText("I/O Error: could not open file.");
                 }
