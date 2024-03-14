@@ -557,14 +557,13 @@ public class Main extends JFrame {
                         }
                         break;
                     case "SYS":
+                        lineHexDump.add((byte) 0xFF);
                         if (tokens.length > 1) {
                             if (tokens[1].startsWith("$")) {
-                                lineHexDump.add((byte) 0xFF);
                                 byte[] operands = parseAbsAddr(tokens);
                                 lineHexDump.add(operands[0]);
                                 lineHexDump.add(operands[1]);
                             } else if (foundLabels.containsKey(tokens[1])) {
-                                lineHexDump.add((byte) 0xFF);
                                 byte[] operands = parseAbsLabel(tokens, foundLabels);
                                 lineHexDump.add(operands[0]);
                                 lineHexDump.add(operands[1]);
