@@ -2,6 +2,7 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.*;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
@@ -9,6 +10,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.AdjustmentListener;
 import java.awt.event.KeyEvent;
+import java.awt.geom.Rectangle2D;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,6 +68,7 @@ public class Main extends JFrame {
             @Override public void removeUpdate(DocumentEvent e) {updateLineNumbers();}
             @Override public void changedUpdate(DocumentEvent e) {updateLineNumbers();}
         });
+        textArea.addCaretListener(e -> darkenLine());
 
         // Create the line number area
         lineNumberArea = new JTextArea("1") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
@@ -136,7 +139,7 @@ public class Main extends JFrame {
         });
         outputContainer.add(copyButton, BorderLayout.SOUTH);
 
-        outputArea = new JTextArea("");
+        outputArea = new JTextArea("") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         outputArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         outputArea.setEditable(false);
         JScrollPane outputScrollPane = new JScrollPane(outputArea);
@@ -176,6 +179,24 @@ public class Main extends JFrame {
         addressArea.setText(addressSb.toString());
         hexDumpArea.setText(hexSb.toString());
         revalidate();
+    }
+
+    /**Darkens the selected line to make it more clear.*/
+    private void darkenLine() {
+        textArea.repaint();
+        SwingUtilities.invokeLater(() -> {
+            try {
+                Graphics g = textArea.getGraphics();
+                Rectangle2D r2d = textArea.modelToView2D(textArea.getCaret().getDot());
+                int width = textArea.getWidth();
+                int lineHeight = (int) r2d.getHeight();
+                int lineNumber = (int) Math.floor(r2d.getY() / lineHeight);
+                g.setColor(new Color(200, 200, 200, 100));
+                g.fillRect(0, lineNumber * lineHeight, width, lineHeight);
+            } catch (BadLocationException e) {
+                outputArea.setText("Editor error: could not darken selected line color.");
+            }
+        });
     }
 
     /**Opens a file from disk and displays the assembly content.*/
