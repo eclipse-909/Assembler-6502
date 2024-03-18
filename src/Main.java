@@ -316,7 +316,9 @@ public class Main extends JFrame {
                     outputArea.setText("Assembling Error: Unrecognized token. Consider adding a ';' to make the following text a comment. Line " + (lineNum + 1));
                     return;
                 }
-                addressSb.append("\n");
+                if (lineNum < textArea.getLineCount() - 2) {
+                    addressSb.append("\n");
+                }
                 continue;
             }
 
@@ -424,7 +426,10 @@ public class Main extends JFrame {
 
             // Update the address
             endLine = lineNum + 1;
-            addressSb.append(String.format("0x%04X", address)).append("\n");
+            addressSb.append(String.format("0x%04X", address));
+            if (lineNum < textArea.getLineCount() - 2) {
+                addressSb.append("\n");
+            }
             address += instructionSize;
         }
 
@@ -438,7 +443,9 @@ public class Main extends JFrame {
 
             // Ignore first pass checks for empty lines, org, end, labels, and comments
             if (tokens.length == 0 || tokens[0].equalsIgnoreCase(".ORG") || tokens[0].equalsIgnoreCase(".END") || tokens[0].endsWith(":") || tokens[0].isEmpty()) {
-                hexDumpSb.append("\n");
+                if (lineNum < textArea.getLineCount() - 2) {
+                    hexDumpSb.append("\n");
+                }
                 continue;
             }
 
@@ -683,7 +690,9 @@ public class Main extends JFrame {
                     outputSb.append(", ");
                 }
             }
-            hexDumpSb.append("\n");
+            if (lineNum < textArea.getLineCount() - 2) {
+                hexDumpSb.append("\n");
+            }
         }
 
         // Update the address area and hex dump area
