@@ -74,5 +74,7 @@ second_byte: +$01 ;label points to 02
 
     STA low_byte ;store 01 where the 08 was
 
+    BRK
+
     .END
 ```
