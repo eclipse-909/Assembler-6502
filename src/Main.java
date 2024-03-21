@@ -1,7 +1,10 @@
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.plaf.basic.BasicSplitPaneDivider;
+import javax.swing.plaf.basic.BasicSplitPaneUI;
 import javax.swing.text.*;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
@@ -34,6 +37,7 @@ public class Main extends JFrame {
 
         // Navigation bar
         JToolBar toolBar = new JToolBar();
+        toolBar.setBackground(Color.LIGHT_GRAY);
         JButton newButton = new JButton("New");
         newButton.addActionListener(new ActionListener() {
             @Override public void actionPerformed(ActionEvent e) {
@@ -63,6 +67,9 @@ public class Main extends JFrame {
         textArea = new JTextArea();
         textArea.setTabSize(4);
         textArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
+        textArea.setBackground(Color.DARK_GRAY);
+        textArea.setForeground(Color.LIGHT_GRAY);
+        textArea.setCaretColor(Color.LIGHT_GRAY);
         textArea.getDocument().addDocumentListener(new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent e) {updateLineNumbers();}
             @Override public void removeUpdate(DocumentEvent e) {updateLineNumbers();}
@@ -74,17 +81,20 @@ public class Main extends JFrame {
         lineNumberArea = new JTextArea("1") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         lineNumberArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         lineNumberArea.setEditable(false);
-        lineNumberArea.setBackground(Color.LIGHT_GRAY);
+        lineNumberArea.setBackground(Color.DARK_GRAY);
+        lineNumberArea.setForeground(Color.LIGHT_GRAY);
         // Create the addresses area
         addressArea = new JTextArea("0x0000") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         addressArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         addressArea.setEditable(false);
-        addressArea.setBackground(Color.LIGHT_GRAY);
+        addressArea.setBackground(Color.DARK_GRAY);
+        addressArea.setForeground(Color.LIGHT_GRAY);
         // Create the hex dump area
         hexDumpArea = new JTextArea("00") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         hexDumpArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         hexDumpArea.setEditable(false);
-        hexDumpArea.setBackground(Color.LIGHT_GRAY);
+        hexDumpArea.setBackground(Color.DARK_GRAY);
+        hexDumpArea.setForeground(Color.LIGHT_GRAY);
         // Organize the components
         textScrollPane = new JScrollPane(textArea);
         lineNumberScrollPane = new JScrollPane(lineNumberArea);
@@ -120,12 +130,27 @@ public class Main extends JFrame {
         right.add(hexDumpScrollPane, BorderLayout.CENTER);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
+        splitPane.setUI(new BasicSplitPaneUI() {
+            public BasicSplitPaneDivider createDefaultDivider() {
+                return new BasicSplitPaneDivider(this) {
+                    @Override public void setBorder(Border b) {}
+                    @Override public void paint(Graphics g) {
+                        g.setColor(Color.LIGHT_GRAY);
+                        g.fillRect(0, 0, getSize().width, getSize().height);
+                        super.paint(g);
+                    }
+                };
+            }
+        });
+        splitPane.setBorder(null);
+        splitPane.setContinuousLayout(true);
         splitPane.setResizeWeight(0.7);
 
         contentPane.add(splitPane, BorderLayout.CENTER);
 
         // Output area
         JPanel outputContainer = new JPanel();
+        outputContainer.setBackground(Color.LIGHT_GRAY);
         outputContainer.setLayout(new BoxLayout(outputContainer, BoxLayout.X_AXIS));
         outputContainer.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
@@ -142,6 +167,8 @@ public class Main extends JFrame {
         outputArea = new JTextArea("") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         outputArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         outputArea.setEditable(false);
+        outputArea.setBackground(Color.DARK_GRAY);
+        outputArea.setForeground(Color.lightGray);
         JScrollPane outputScrollPane = new JScrollPane(outputArea);
         outputScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
         outputScrollPane.setPreferredSize(new Dimension(getWidth() - 20, 50));
