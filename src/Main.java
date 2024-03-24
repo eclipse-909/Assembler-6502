@@ -5,7 +5,6 @@ import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.basic.BasicSplitPaneDivider;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
-import javax.swing.text.*;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
@@ -13,7 +12,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.AdjustmentListener;
 import java.awt.event.KeyEvent;
-import java.awt.geom.Rectangle2D;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +24,8 @@ public class Main extends JFrame {
     private final JScrollPane textScrollPane, lineNumberScrollPane, addressScrollPane, hexDumpScrollPane;
     /**Tracks the open file to allow Save when Save As isn't necessary.*/
     private File currentFile;
+    /**Tracks the line number the caret is on.*/
+    private static int startOffset = -1, lineHeight = -1;
 
     /**Constructor for the window.*/
     public Main() {
@@ -64,7 +64,15 @@ public class Main extends JFrame {
         contentPane.add(toolBar, BorderLayout.NORTH);
 
         // Create the main text area
-        textArea = new JTextArea();
+        textArea = new JTextArea() {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (startOffset >= 0 && lineHeight > 0) {
+                    g.setColor(new Color(150, 150, 150, 50));
+                    g.fillRect(0, startOffset, getWidth(), lineHeight);
+                }
+            }
+        };
         textArea.setTabSize(4);
         textArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         textArea.setBackground(Color.DARK_GRAY);
@@ -75,7 +83,7 @@ public class Main extends JFrame {
             @Override public void removeUpdate(DocumentEvent e) {updateLineNumbers();}
             @Override public void changedUpdate(DocumentEvent e) {updateLineNumbers();}
         });
-        textArea.addCaretListener(e -> darkenLine());
+        textArea.addCaretListener(e -> highlightLine());
 
         // Create the line number area
         lineNumberArea = new JTextArea("1") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
@@ -209,21 +217,20 @@ public class Main extends JFrame {
     }
 
     /**Darkens the selected line to make it more clear.*/
-    private void darkenLine() {
+    private void highlightLine() {
+        FontMetrics fm = textArea.getFontMetrics(textArea.getFont());
+        int lineHeight = fm.getHeight();
+        int caretPosition = textArea.getCaretPosition();
+        int startOffset = textArea.getDocument().getDefaultRootElement().getElementIndex(caretPosition) * lineHeight;
         textArea.repaint();
-        SwingUtilities.invokeLater(() -> {
-            try {
-                Graphics g = textArea.getGraphics();
-                Rectangle2D r2d = textArea.modelToView2D(textArea.getCaret().getDot());
-                int width = textArea.getWidth();
-                int lineHeight = (int) r2d.getHeight();
-                int lineNumber = (int) Math.floor(r2d.getY() / lineHeight);
-                g.setColor(new Color(200, 200, 200, 100));
-                g.fillRect(0, lineNumber * lineHeight, width, lineHeight);
-            } catch (BadLocationException e) {
-                outputArea.setText("Editor error: could not darken selected line color.");
-            }
-        });
+        setLineHighlight(textArea, startOffset, lineHeight);
+    }
+
+    /**Sets tne location for the line highlighting.*/
+    private static void setLineHighlight(JTextArea area, int start, int height) {
+        startOffset = start;
+        lineHeight = height;
+        area.repaint();
     }
 
     /**Opens a file from disk and displays the assembly content.*/
