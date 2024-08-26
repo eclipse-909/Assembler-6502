@@ -30,7 +30,7 @@ Here are the supported instructions:
 | __ | DAT | DAT $05 | 05 |
 
 # Download
-You can find the JAR file in this directory: https://github.com/eclipse-909/Assembler-6502/blob/master/out/artifacts/Assembler_6502_jar/Assembler-6502.jar
+You can find the JAR file here: https://github.com/eclipse-909/Assembler-6502/releases/tag/Latest
 
 # Syntax
 - Extra spacing is ignored
