@@ -78,3 +78,6 @@ second_byte: +$01 ;label points to 02
 
     .END
 ```
+
+# Contribution
+Feel free to open an issue or PR, but I can't promise I'll look at it any time soon.
