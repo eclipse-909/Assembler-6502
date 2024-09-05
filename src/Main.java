@@ -226,7 +226,7 @@ public class Main extends JFrame {
         setLineHighlight(textArea, startOffset, lineHeight);
     }
 
-    /**Sets tne location for the line highlighting.*/
+    /**Sets the location for the line highlighting.*/
     private static void setLineHighlight(JTextArea area, int start, int height) {
         startOffset = start;
         lineHeight = height;
@@ -270,7 +270,7 @@ public class Main extends JFrame {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(currentFile))) {
                 writer.write(textArea.getText());
             } catch (IOException e) {
-                outputArea.setText("I/O Error: could save as.");
+                outputArea.setText("I/O Error: could not save as.");
             }
         } else {
             int returnValue = fileChooser.showSaveDialog(this);
@@ -283,7 +283,7 @@ public class Main extends JFrame {
                     writer.write(textArea.getText());
                     currentFile = file;
                 } catch (IOException e) {
-                    outputArea.setText("I/O Error: could save file.");
+                    outputArea.setText("I/O Error: could not save file.");
                 }
             }
         }
