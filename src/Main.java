@@ -14,7 +14,6 @@ import java.awt.event.AdjustmentListener;
 import java.awt.event.KeyEvent;
 import java.io.*;
 import java.util.ArrayList;
-import java.util.List;
 
 /**The entire application; GUI plus backend logic.*/
 public class Main extends JFrame {
@@ -26,6 +25,7 @@ public class Main extends JFrame {
     private File currentFile;
     /**Tracks the line number the caret is on.*/
     private static int startOffset = -1, lineHeight = -1;
+    private static final Color backgroundColor = new Color(0x18, 0x18, 0x18, 0xFF);
 
     /**Constructor for the window.*/
     public Main() {
@@ -68,14 +68,14 @@ public class Main extends JFrame {
             @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 if (startOffset >= 0 && lineHeight > 0) {
-                    g.setColor(new Color(150, 150, 150, 50));
+                    g.setColor(new Color(50, 50, 50, 50));
                     g.fillRect(0, startOffset, getWidth(), lineHeight);
                 }
             }
         };
         textArea.setTabSize(4);
         textArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
-        textArea.setBackground(Color.DARK_GRAY);
+        textArea.setBackground(backgroundColor);
         textArea.setForeground(Color.LIGHT_GRAY);
         textArea.setCaretColor(Color.LIGHT_GRAY);
         textArea.getDocument().addDocumentListener(new DocumentListener() {
@@ -89,19 +89,19 @@ public class Main extends JFrame {
         lineNumberArea = new JTextArea("1") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         lineNumberArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         lineNumberArea.setEditable(false);
-        lineNumberArea.setBackground(Color.DARK_GRAY);
+        lineNumberArea.setBackground(backgroundColor);
         lineNumberArea.setForeground(Color.LIGHT_GRAY);
         // Create the addresses area
         addressArea = new JTextArea("0x0000") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         addressArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         addressArea.setEditable(false);
-        addressArea.setBackground(Color.DARK_GRAY);
+        addressArea.setBackground(backgroundColor);
         addressArea.setForeground(Color.LIGHT_GRAY);
         // Create the hex dump area
         hexDumpArea = new JTextArea("00") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         hexDumpArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         hexDumpArea.setEditable(false);
-        hexDumpArea.setBackground(Color.DARK_GRAY);
+        hexDumpArea.setBackground(backgroundColor);
         hexDumpArea.setForeground(Color.LIGHT_GRAY);
         // Organize the components
         textScrollPane = new JScrollPane(textArea);
@@ -175,8 +175,8 @@ public class Main extends JFrame {
         outputArea = new JTextArea("") {@Override public void scrollRectToVisible(Rectangle aRect) {}};
         outputArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         outputArea.setEditable(false);
-        outputArea.setBackground(Color.DARK_GRAY);
-        outputArea.setForeground(Color.lightGray);
+        outputArea.setBackground(backgroundColor);
+        outputArea.setForeground(Color.darkGray);
         JScrollPane outputScrollPane = new JScrollPane(outputArea);
         outputScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
         outputScrollPane.setPreferredSize(new Dimension(getWidth() - 20, 50));
@@ -483,7 +483,7 @@ public class Main extends JFrame {
                 continue;
             }
 
-            List<Byte> lineHexDump = new ArrayList<>();
+            ArrayList<Byte> lineHexDump = new ArrayList<>();
 
             // Parse instruction (second pass)
             try {
@@ -772,7 +772,8 @@ public class Main extends JFrame {
         }
         int difference = decAddr - (callAddr + 1);
         if (difference < -128 || difference > 127) {
-            throw new InvalidTokenException("Target address is too far for relative addressing. The change is " + difference + " and must be between -128 and 127 inclusive. Consider chain branching");
+            throw new InvalidTokenException("Target address is too far for relative addressing. The change is "
+                    + difference + " and must be between -128 and 127 inclusive. Consider chain branching");
         }
         return (byte) difference;
     }
@@ -795,7 +796,7 @@ public class Main extends JFrame {
 
     /**Custom data structure to keep track of labels.*/
     private static class LabelList {
-        private final List<Label> labels;
+        private final ArrayList<Label> labels;
         private void add(String n, int l, int a) {labels.add(new Label(n, l, a));}
 
         private LabelList() {
