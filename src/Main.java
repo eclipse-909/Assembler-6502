@@ -8,10 +8,7 @@ import javax.swing.plaf.basic.BasicSplitPaneUI;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.AdjustmentListener;
-import java.awt.event.KeyEvent;
+import java.awt.event.*;
 import java.io.*;
 import java.util.ArrayList;
 
@@ -176,7 +173,7 @@ public class Main extends JFrame {
         outputArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         outputArea.setEditable(false);
         outputArea.setBackground(backgroundColor);
-        outputArea.setForeground(Color.darkGray);
+        outputArea.setForeground(Color.lightGray);
         JScrollPane outputScrollPane = new JScrollPane(outputArea);
         outputScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
         outputScrollPane.setPreferredSize(new Dimension(getWidth() - 20, 50));
@@ -190,6 +187,36 @@ public class Main extends JFrame {
         Action saveAction = new AbstractAction() {@Override public void actionPerformed(ActionEvent e) {saveFile(false);}};
 
         textArea.getActionMap().put("save", saveAction);
+
+        //auto-indentation
+        textArea.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() != KeyEvent.VK_ENTER) {return;}
+                int caretPosition = textArea.getCaretPosition();
+                String text = textArea.getText();
+                // Find the start of the previous line
+                int lineStart = text.lastIndexOf("\n", caretPosition - 1);
+                if (lineStart < 0) {lineStart = 0;}
+                // Extract the previous line
+                String previousLine = text.substring(lineStart + 1, caretPosition);
+                // Find the indentation (spaces or tabs) of the previous line
+                StringBuilder indentation = new StringBuilder();
+                for (char c : previousLine.toCharArray()) {
+                    if (c == ' ' || c == '\t') {
+                        indentation.append(c);
+                    } else {
+                        break;
+                    }
+                }
+                // Insert the indentation to the new line
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        textArea.getDocument().insertString(textArea.getCaretPosition(), indentation.toString(), null);
+                    } catch (Exception ignore) {}
+                });
+            }
+        });
 
         setContentPane(contentPane);
         setVisible(true);
