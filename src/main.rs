@@ -4,7 +4,8 @@ use {
 		process,
 		fs::File,
 		io::{Write, BufReader, BufRead},
-		collections::HashMap
+		collections::HashMap,
+		str::FromStr
 	},
 	clap::{arg, command, value_parser, ArgAction, ArgMatches},
 	once_cell::sync::OnceCell,
@@ -12,6 +13,11 @@ use {
 };
 
 static QUIET: OnceCell<bool> = OnceCell::new();
+const IMD_VAL: &str = r"^#\$[0-9a-fA-F]{2}$";
+const ADDR_LABEL: &str = r"^((\$[0-9a-fA-F]{4})|([a-zA-Z_]+[a-zA-Z0-9_]*))$";
+const LABEL: &str = r"^[a-zA-Z_]+[a-zA-Z0-9_]*$";
+const ADDR: &str = r"^\$[0-9a-fA-F]{4}$";
+const QUOTES: &str = r#"^"[^"]*"$"#;
 
 ///Prints the formatted string if !QUIET.
 macro_rules! log {
@@ -65,7 +71,7 @@ macro_rules! parse_string {
 ///Second variant: token: String (1 byte, 2 bytes, or label), hex_dump: vector, opcode for absolute addressing, labels: hashmap.
 macro_rules! match_operand {
     ($token:expr, $hex_dump:expr, $opcode_absolute:expr, $labels:expr, $addr:expr) => {{
-        if Regex::new(r"^\$[0-9a-f]{4}$").unwrap().is_match($token) {
+        if Regex::new(ADDR).unwrap().is_match($token) {
             // Absolute address
             if let Some(operand) = parse_hex!($token, "$", u16) {
 	            $hex_dump.push($opcode_absolute);
@@ -76,7 +82,7 @@ macro_rules! match_operand {
             } else {
 	            false
             }
-        } else if Regex::new(r"^[a-zA-Z_]+[a-zA-Z0-9_]*$").unwrap().is_match($token) {
+        } else if Regex::new(LABEL).unwrap().is_match($token) {
             // Absolute label
             if let Some((operand, _)) = $labels.get($token) {
 	            $hex_dump.push($opcode_absolute);
@@ -93,7 +99,7 @@ macro_rules! match_operand {
     }};
 
     ($token:expr, $hex_dump:expr, $opcode_immediate:expr, $opcode_absolute:expr, $labels:expr, $addr:expr) => {{
-        if Regex::new(r"^#\$[0-9a-f]{2}$").unwrap().is_match($token) {
+        if Regex::new(IMD_VAL).unwrap().is_match($token) {
             // Immediate value
             if let Some(operand) = parse_hex!($token, "#$", u8) {
 	            $hex_dump.push($opcode_immediate);
@@ -181,16 +187,16 @@ fn main() {
 				error!("Failed to read input file.");
 				process::exit(1);
 			};
-			line = line.trim().to_lowercase().to_string();
+			line = line.trim().to_string();
 			if line.is_empty() {continue;}
 			
-			//split line by white space, ignore comments, and preserve strings
-			let tokens: Vec<String> = Regex::new(r#"(?x)
+			//split line by white space and commas, ignore comments, and preserve strings with double quotes
+			let mut tokens: Vec<String> = Regex::new(r#"(?x)
 		        ("[^"]*")        # Match anything inside double quotes, including the quotes
-			    |                # OR
-			    ([^;\s]+)        # Match non-whitespace, non-semicolon sequences
-			    |                # OR
-			    (;.*$)           # Match semicolon and everything after (comment)
+		        |                # OR
+		        ([^;\s]+)       # Match sequences that are not whitespace or semicolons
+		        |                # OR
+		        (;.*$)           # Match semicolon and everything after (comment)
 		    "#).unwrap()
 				.captures_iter(line.as_str())
 				.filter_map(|cap| {
@@ -199,7 +205,7 @@ fn main() {
 					} else if let Some(unquoted) = cap.get(2) {
 						Some(unquoted.as_str().to_string()) // Unquoted text
 					} else {
-						None // Skip comments
+						None // Skip commas and comments
 					}
 				})
 				.collect();
@@ -207,35 +213,38 @@ fn main() {
 			if tokens.len() == 0 {continue;}
 			
 			//check for .org
-			if org_addr == None {
-				if tokens[0] == ".org" {
-					if tokens.len() == 1 {
-						error!("Syntax error, please provide address. Must be of format '.ORG $0000'. Line {}.", line_num + 1);
-						assembly_successful = false;
-						continue;
-					} else if tokens.len() > 2 {
-						error!("Syntax error, unnecessary token. Must be of format '.ORG $0000'. Line {}.", line_num + 1);
-						assembly_successful = false;
-						continue;
-					}
-					let hex_num: Option<u16> = parse_hex!(tokens[1], "$", u16);
-					if hex_num.is_some() {
-						org_addr = hex_num;
-						continue;
-					} else {
-						error!("Syntax error, could not parse address. Must be of format '$0000'. Line {}.", line_num + 1);
-						assembly_successful = false;
-						continue;
-					};
-				} else {
-					warn!("Base address is not set. 0x0000 will be used by default. Consider including '.ORG $0000' prior to your code.");
-					org_addr = Some(0x0000);
+			if org_addr.is_none() && tokens[0].to_lowercase() != ".org" {
+				warn!("Base address is not set. 0x0000 will be used by default. Consider including '.ORG $0000' prior to your code.");
+				org_addr = Some(0x0000);
+			}
+			if tokens[0].to_lowercase() == ".org" {
+				if org_addr.is_some() {
+					error!("Cannot set org address more than once or after any code. Line {}.", line_num + 1);
+					assembly_successful = false;
 					continue;
 				}
+				if tokens.len() == 1 {
+					error!("Syntax error, please provide address. Must be of format '.ORG $0000'. Line {}.", line_num + 1);
+					assembly_successful = false;
+					continue;
+				} else if tokens.len() > 2 {
+					error!("Syntax error, unnecessary token. Must be of format '.ORG $0000'. Line {}.", line_num + 1);
+					assembly_successful = false;
+					continue;
+				}
+				if let Some(hex_num) = parse_hex!(tokens[1], "$", u16) {
+					org_addr = Some(hex_num);
+					addr = hex_num;
+					continue;
+				} else {
+					error!("Syntax error, could not parse address. Must be of format '$0000'. Line {}.", line_num + 1);
+					assembly_successful = false;
+					continue;
+				};
 			}
 			
 			//check for .end
-			if tokens[0] == ".end" {
+			if tokens[0].to_lowercase() == ".end" {
 				if tokens.len() == 2 {
 					if let Some(addr) = parse_hex!(tokens[1], "$", u16) {
 						end_addr = Some(addr);
@@ -253,12 +262,7 @@ fn main() {
 			}
 			
 			//check for label
-			if tokens[0].ends_with(":") {
-				if !Regex::new(r"^[a-zA-Z_]+[a-zA-Z0-9_]*:$").unwrap().is_match(tokens[0].as_str()) {
-					error!("Syntax error, label contains invalid characters. Must match the regex '^[a-zA-Z_]+[a-zA-Z0-9_]*:$'. Line {}.", line_num + 1);
-					assembly_successful = false;
-					continue;
-				}
+			if Regex::new(r"^[a-zA-Z_]+[a-zA-Z0-9_]*:$").unwrap().is_match(tokens[0].as_str()) {
 				let mut offset: u16 = 0;
 				let label: String = tokens[0].strip_suffix(":").unwrap().to_string();
 				if labels.contains_key(&label) {
@@ -280,6 +284,8 @@ fn main() {
 				}
 				labels.insert(tokens[0].strip_suffix(":").unwrap().to_string(), (addr + offset, line_num + 1));
 				continue;
+			} else {
+				tokens[0] = tokens[0].to_lowercase();
 			}
 			
 			//parse instruction (first pass to verify opcodes and operand count)
@@ -287,9 +293,9 @@ fn main() {
 			match tokens[0].as_str() {
 				"lda" | "ldx" | "ldy" => {
 					if tokens.len() == 2 {
-						if Regex::new(r"^#\$[0-9a-f]{2}$").unwrap().is_match(tokens[1].as_str()) {
+						if Regex::new(IMD_VAL).unwrap().is_match(tokens[1].as_str()) {
 							instruction_len = 2;
-						} else if Regex::new(r"^((\$[0-9a-f]{4})|([a-zA-Z_]+[a-zA-Z0-9_]*))$").unwrap().is_match(tokens[1].as_str()) {
+						} else if Regex::new(ADDR_LABEL).unwrap().is_match(tokens[1].as_str()) {
 							instruction_len = 3;
 						} else {
 							error!("Syntax error, invalid operand. Operand must be written with format '#$00' or '$0000' or a label. Line {}.", line_num + 1);
@@ -304,7 +310,7 @@ fn main() {
 				}
 				"sta" | "adc" | "cpx" | "inc" => {
 					if tokens.len() == 2 {
-						if Regex::new(r"^((\$[0-9a-f]{4})|([a-zA-Z_]+[a-zA-Z0-9_]*))$").unwrap().is_match(tokens[1].as_str()) {
+						if Regex::new(ADDR_LABEL).unwrap().is_match(tokens[1].as_str()) {
 							instruction_len = 3;
 						} else {
 							error!("Syntax error, invalid operand. Operand must be written with format '$0000' or a label. Line {}.", line_num + 1);
@@ -319,7 +325,7 @@ fn main() {
 				}
 				"bne" => {
 					if tokens.len() == 2 {
-						if Regex::new(r"^((\$[0-9a-f]{2})|([a-zA-Z_]+[a-zA-Z0-9_]*))$").unwrap().is_match(tokens[1].as_str()) {
+						if Regex::new(r"^((\$[0-9a-fA-F]{2})|([a-zA-Z_]+[a-zA-Z0-9_]*))$").unwrap().is_match(tokens[1].as_str()) {
 							instruction_len = 2;
 						} else {
 							error!("Syntax error, invalid operand. Operand must be written with format '$00' or a label. Line {}.", line_num + 1);
@@ -332,7 +338,7 @@ fn main() {
 						continue;
 					}
 				}
-				"txa" | "tya" | "tax" | "tay" | "nop" | "brk" | "sys" => {
+				"txa" | "tya" | "tax" | "tay" | "nop" | "brk" => {
 					instruction_len = 1;
 					if tokens.len() > 1 {
 						error!("Syntax error, unnecessary token. Instruction requires no operands. Line {}.", line_num + 1);
@@ -340,11 +346,54 @@ fn main() {
 						continue;
 					}
 				}
+				"sys" => {
+					if tokens.len() == 1 {
+						instruction_len = 1;
+					} else {
+						if Regex::new(r"^((\$[0-9a-fA-F]{4})|([a-zA-Z_]+[a-zA-Z0-9_]*))\s*,\s*[1-3]$").unwrap().is_match(tokens[1..].join("").as_str()) {
+							let mut t: Vec<String> = tokens[1].split(",").map(|s| s.to_string()).collect();
+							tokens.drain(1..);
+							tokens.append(&mut t);
+							if Regex::new(r"^[1-3]$").unwrap().is_match(tokens[2].as_str()) {
+								let num: u8 = u8::from_str(tokens[2].as_str()).unwrap();
+								//num == 1
+								//LDX #$01
+								//LDY label or absolute address
+								//SYS
+								//instruction_len = 6
+								
+								//num == 2
+								//LDX #$02
+								//LDY relative address
+								//SYS
+								//instruction_len = 5
+								
+								//num == 3
+								//LDX #$03
+								//SYS label or absolute address
+								//instruction_len = 5
+								if num == 1 {
+									instruction_len = 6;
+								} else {
+									instruction_len = 5;
+								}
+							} else {
+								error!("Bad value. When using a label with a system call, you must set the X register to 1-3. Line {}.", line_num + 1);
+								assembly_successful = false;
+								continue;
+							}
+						} else {
+							error!("Syntax error, unrecognized tokens. SYS must be formatted as 'SYS' or 'SYS label,1-3' or 'SYS $0000,1-3'. Line {}.", line_num + 1);
+							assembly_successful = false;
+							continue;
+						}
+					}
+				}
 				"dat" => {
 					if tokens.len() == 2 {
-						if Regex::new(r#"^\$([a-zA-Z0-9]{2})+$"#).unwrap().is_match(tokens[1].as_str()) {
+						if Regex::new(r"^\$([0-9a-zA-Z]{2})+$").unwrap().is_match(tokens[1].as_str()) {
 							instruction_len = (tokens[1].len() as u8 - 1) / 2;
-						} else if Regex::new(r#"^"[^"]*"$"#).unwrap().is_match(tokens[1].as_str()) {
+						} else if Regex::new(QUOTES).unwrap().is_match(tokens[1].as_str()) {
 							instruction_len = parse_string!(tokens[1]).len() as u8 + 1;//+1 for null-terminator
 						} else {
 							error!("Syntax error, unrecognized token. Data must be formatted as 'DAT $00...' or 'DAT \"Hello, World!\"'. Line {}.", line_num + 1);
@@ -389,7 +438,7 @@ fn main() {
 				"cpx" => match_operand!(tokens[1].as_str(), hex_dump, 0xEC, labels, addr),
 				"inc" => match_operand!(tokens[1].as_str(), hex_dump, 0xEE, labels, addr),
 				"bne" => {
-					if Regex::new(r"^\$[0-9a-f]{2}$").unwrap().is_match(tokens[1].as_str()) {
+					if Regex::new(r"^\$[0-9a-fA-F]{2}$").unwrap().is_match(tokens[1].as_str()) {
 						// relative address
 						if let Some(operand) = parse_hex!(tokens[1], "$", u8) {
 							hex_dump.push(0xD0);
@@ -399,7 +448,7 @@ fn main() {
 						} else {
 							false
 						}
-					} else if Regex::new(r"^[a-zA-Z_]+[a-zA-Z0-9_]*$").unwrap().is_match(tokens[1].as_str()) {
+					} else if Regex::new(LABEL).unwrap().is_match(tokens[1].as_str()) {
 						if let Some((operand, _)) = labels.get(tokens[1].as_str()) {
 							addr += 2;
 							let mut diff: u16 = operand.wrapping_sub(addr);
@@ -427,7 +476,7 @@ fn main() {
 					}
 				},
 				"dat" => {
-					if Regex::new(r"^\$([0-9a-f]{2})+$").unwrap().is_match(tokens[1].as_str()) {
+					if Regex::new(r"^\$([0-9a-fA-F]{2})+$").unwrap().is_match(tokens[1].as_str()) {
 						// raw bytes
 						match tokens[1].strip_prefix("$")
 							.unwrap()
@@ -449,7 +498,7 @@ fn main() {
 								false
 							}
 						}
-					} else if Regex::new(r#"^"[^"]*"$"#).unwrap().is_match(tokens[1].as_str()) {
+					} else if Regex::new(QUOTES).unwrap().is_match(tokens[1].as_str()) {
 						// string
 						let mut bytes: Vec<u8> = parse_string!(tokens[1]).as_bytes().to_vec();
 						bytes.push(0x00);//null-terminator
@@ -460,7 +509,83 @@ fn main() {
 						false
 					}
 				},
-				"sys" => {hex_dump.push(0xFF); addr += 1; true},
+				"sys" => {
+					//num == 1
+					//LDX #$01
+					//LDY label or absolute address
+					//SYS
+					//instruction_len = 6
+					
+					//num == 2
+					//LDX #$02
+					//LDY relative address
+					//SYS
+					//instruction_len = 5
+					
+					//num == 3
+					//LDX #$03
+					//SYS label or absolute address
+					//instruction_len = 5
+					if tokens.len() == 1 {
+						hex_dump.push(0xFF);
+						true
+					} else {
+						let num: u8 = u8::from_str(tokens[2].as_str()).unwrap();
+						let operand: Option<u16> = if Regex::new(ADDR).unwrap().is_match(tokens[1].as_str()) {
+							// absolute address
+							parse_hex!(tokens[1], "$", u16)
+						} else if Regex::new(LABEL).unwrap().is_match(tokens[1].as_str()) {
+							// label
+							if let Some((operand, _)) = labels.get(tokens[1].as_str()) {
+								Some(*operand)
+							} else {
+								None
+							}
+						} else {
+							None
+						};
+						if let Some(operand) = operand {
+							match num {
+								1 => {
+									let operand: [u8; 2] = operand.to_le_bytes();
+									hex_dump.append(&mut vec![0xA2, 0x01, 0xAC, operand[0], operand[1], 0xFF]);
+									addr += 6;
+									true
+								}
+								2 => {
+									addr += 5;
+									let rel_addr: Option<u8> = if end_addr.is_some() {
+										Some(operand as u8)
+									} else {
+										let diff: u16 = operand.wrapping_sub(addr);
+										if diff > 0x00FF && diff < 0xFF00 {
+											error!("System call error. Target address given by {} is too far for relative addressing. Line {}.", tokens[1], line_num + 1);
+											assembly_successful = false;
+											None
+										} else {
+											Some(diff as u8)
+										}
+									};
+									if let Some(a) = rel_addr {
+										hex_dump.append(&mut vec![0xA2, 0x02, 0xA0, a, 0xFF]);
+										true
+									} else {
+										false
+									}
+								}
+								3 => {
+									let operand: [u8; 2] = operand.to_le_bytes();
+									hex_dump.append(&mut vec![0xA2, 0x03, 0xFF, operand[0], operand[1]]);
+									addr += 5;
+									true
+								}
+								_ => { false }
+							}
+						} else {
+							false
+						}
+					}
+				},
 				"txa" => {hex_dump.push(0x8A); addr += 1; true},
 				"tya" => {hex_dump.push(0x98); addr += 1; true},
 				"tax" => {hex_dump.push(0xAA); addr += 1; true},
