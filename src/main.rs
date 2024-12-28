@@ -460,7 +460,7 @@ fn main() {
 								if let Some(end) = end_addr {
 									//wrap around end
 									if *operand < addr {
-										diff = end - addr + operand + 1;
+										diff = end - addr + operand;
 									}
 								}
 								//two's comp
