@@ -1,5 +1,5 @@
 # 6502 Assembler
-* Install v2.0.0 from Releases (Windows x86_64 executable)
+* Install the latest release (Windows x86_64 executable)
 * Run in the shell:
 ```shell
 /path/to/asm_6502.exe --help
@@ -10,6 +10,7 @@ ___
 - This assembler doesn't support most instructions in the 6502 ISA. The supported instructions are listed below.
 - The output binary is not an actual binary file. It is a sequence of hexadecimal numbers which represent the binary.
 - You can find the 6502 emulator that this is meant for here: https://tsiram.com/
+- You can find the web-based operating system I built this for here: https://eclipse-909.github.io/potatOS/
 
 Here are the supported instructions:  
 | Op Code | Mnemonic | Assembly | Hex |
